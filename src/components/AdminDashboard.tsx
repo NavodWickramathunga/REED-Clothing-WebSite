@@ -22,7 +22,9 @@ import {
   Cpu,
   Terminal,
   ArrowRight,
-  ChevronUp 
+  ChevronUp,
+  Upload,
+  Image as ImageIcon 
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import DailyOrdersChart from './DailyOrdersChart';
@@ -166,6 +168,55 @@ export default function AdminDashboard({
     status: string;
   }[]>([]);
   const [activeToast, setActiveToast] = useState<{ title: string; desc: string } | null>(null);
+
+  const readImageAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const handleSingleImageUpload = async (
+    file: File | undefined,
+    setUrl: React.Dispatch<React.SetStateAction<string>>,
+    label: string
+  ) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert(`Please choose an image file for ${label}.`);
+      return;
+    }
+
+    try {
+      const dataUrl = await readImageAsDataUrl(file);
+      setUrl(dataUrl);
+    } catch (error) {
+      console.error(`Failed to read ${label} image`, error);
+      alert(`Could not load the selected ${label.toLowerCase()} image.`);
+    }
+  };
+
+  const handleGalleryUpload = async (
+    files: FileList | null,
+    setInput: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      alert('Please choose image files for the gallery upload.');
+      return;
+    }
+
+    try {
+      const dataUrls = await Promise.all(imageFiles.map((file) => readImageAsDataUrl(file)));
+      setInput((current) => [current, ...dataUrls].filter(Boolean).join(', '));
+    } catch (error) {
+      console.error('Failed to read gallery images', error);
+      alert('Could not load one or more gallery images.');
+    }
+  };
 
   const triggerSimulatedEmailAlert = (productName: string, status: string) => {
     const newAlert = {
@@ -834,13 +885,45 @@ export default function AdminDashboard({
 
         {/* AUTHENTICATION GATE */}
         {!isAuthenticated ? (
-          <div className="flex-grow flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto space-y-4">
-            <Lock className="w-10 h-10 text-neutral-300" />
-            <h3 className="text-md font-serif font-bold text-neutral-900">Protected Workspace</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
-              Authenticate using the brand password or sign in with Google to gain cloud Firestore access.
-            </p>
-            <form onSubmit={handleLogin} className="w-full space-y-3">
+          <div className="flex-grow flex flex-col items-center justify-center p-8 text-center max-w-2xl mx-auto space-y-5">
+            <div className="w-full rounded-2xl border border-neutral-200 bg-neutral-50/90 p-5 text-left shadow-sm space-y-4">
+              <div className="flex items-center gap-3">
+                <Lock className="w-10 h-10 text-neutral-900 shrink-0" />
+                <div>
+                  <h3 className="text-md font-serif font-bold text-neutral-900">Protected Workspace</h3>
+                  <p className="text-[11px] uppercase tracking-[0.28em] font-black text-neutral-500">Admin access gate</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm text-neutral-700 leading-6">
+                  This panel is the control room for product updates, stock changes, order monitoring, and brand image refreshes.
+                </p>
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Unlock it with the shared admin code, or use Google sign-in for cloud Firestore access. Once inside, you can update product photos directly from the same screen.
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Inventory</p>
+                  <p className="mt-1 text-xs text-neutral-700 leading-5">Adjust prices, stock, sizes, and status in one place.</p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Media</p>
+                  <p className="mt-1 text-xs text-neutral-700 leading-5">Replace the main image, hover image, or gallery photos.</p>
+                </div>
+                <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Orders</p>
+                  <p className="mt-1 text-xs text-neutral-700 leading-5">Track live order records, fulfillment status, and exports.</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleLogin} className="w-full max-w-md space-y-3 text-left">
+              <label htmlFor="admin-password-input" className="block text-[10px] uppercase font-bold tracking-widest text-neutral-600 font-mono">
+                Admin Password
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -848,13 +931,15 @@ export default function AdminDashboard({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password (use 'viva123')"
-                  className="w-full pl-3 pr-10 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-550 rounded text-center text-xs font-mono font-bold tracking-widest outline-none focus:ring-2 focus:ring-black dark:focus:ring-amber-400 focus:border-black dark:focus:border-amber-400 transition-all font-bold"
+                  autoComplete="current-password"
+                  spellCheck={false}
+                  className="w-full pl-3 pr-10 py-3 border border-neutral-400 bg-white text-neutral-950 placeholder-neutral-500 rounded-lg text-sm font-mono font-bold tracking-widest outline-none shadow-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
                   id="admin-password-input"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-350 transition-colors focus:outline-none pointer-events-auto cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-900 transition-colors focus:outline-none pointer-events-auto cursor-pointer"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -864,10 +949,13 @@ export default function AdminDashboard({
                   )}
                 </button>
               </div>
+              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                Tip: use the eye icon if you want to see the characters while typing.
+              </p>
               {authError && <div className="text-[10px] text-red-500 font-semibold font-mono">{authError}</div>}
               <button
                 type="submit"
-                className="w-full py-2.5 bg-neutral-950 hover:bg-black dark:bg-amber-400 dark:hover:bg-amber-300 dark:text-neutral-950 border dark:border-transparent text-white rounded text-xs font-bold tracking-wider uppercase transition-colors pointer-events-auto cursor-pointer"
+                className="w-full py-3 bg-neutral-950 hover:bg-black text-white rounded-lg text-xs font-bold tracking-wider uppercase transition-colors pointer-events-auto cursor-pointer shadow-sm"
                 id="admin-auth-submit"
               >
                 Unlock Dashboard with Password
@@ -1245,6 +1333,16 @@ export default function AdminDashboard({
                                           onChange={(e) => setEditingImgUrl(e.target.value)}
                                           className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
                                         />
+                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
+                                          <Upload className="w-3 h-3" />
+                                          <span>Upload primary image</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setEditingImgUrl, 'Primary image')}
+                                          />
+                                        </label>
                                       </div>
                                       <div>
                                         <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Hover Image URL</label>
@@ -1254,6 +1352,16 @@ export default function AdminDashboard({
                                           onChange={(e) => setEditingHoverImgUrl(e.target.value)}
                                           className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
                                         />
+                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
+                                          <Upload className="w-3 h-3" />
+                                          <span>Upload hover image</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setEditingHoverImgUrl, 'Hover image')}
+                                          />
+                                        </label>
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
@@ -1266,6 +1374,17 @@ export default function AdminDashboard({
                                           placeholder="https://image1.com, https://image2.com"
                                           className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
                                         />
+                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
+                                          <Upload className="w-3 h-3" />
+                                          <span>Upload gallery photos</span>
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            className="hidden"
+                                            onChange={(e) => handleGalleryUpload(e.target.files, setEditingImagesInput)}
+                                          />
+                                        </label>
                                       </div>
                                       <div>
                                         <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Gender Group</label>
@@ -2002,6 +2121,25 @@ export default function AdminDashboard({
                     placeholder="Unsplash image URL"
                     className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-mono text-[11px]"
                   />
+                  <div className="mt-2 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/70 dark:bg-neutral-850 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-neutral-500 font-mono">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>Upload or replace image</span>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Choose primary image file</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setNewImgUrl, 'Primary image')}
+                      />
+                    </label>
+                    <p className="text-[10px] leading-relaxed text-neutral-500">
+                      The selected file becomes the product image immediately, so you can swap visuals without pasting a URL.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -2012,6 +2150,17 @@ export default function AdminDashboard({
                     placeholder="https://image1.com, https://image2.com"
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white h-12 resize-none font-mono text-[10px] shadow-3xs"
                   />
+                  <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload gallery images</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleGalleryUpload(e.target.files, setNewImagesInput)}
+                    />
+                  </label>
                 </div>
 
                 <div>
