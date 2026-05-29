@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, StockStatus, OrderDetails } from '../types';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../firebase';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { auth, storage } from '../firebase';
 import { 
   X, 
   Save, 
@@ -169,13 +170,13 @@ export default function AdminDashboard({
   }[]>([]);
   const [activeToast, setActiveToast] = useState<{ title: string; desc: string } | null>(null);
 
-  const readImageAsDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
+  const uploadImageToStorage = async (file: File, folder: string) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+    const storageRef = ref(storage, filePath);
+    const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
+    return getDownloadURL(snapshot.ref);
+  };
 
   const handleSingleImageUpload = async (
     file: File | undefined,
@@ -189,11 +190,11 @@ export default function AdminDashboard({
     }
 
     try {
-      const dataUrl = await readImageAsDataUrl(file);
-      setUrl(dataUrl);
+      const downloadUrl = await uploadImageToStorage(file, `admin-images/${label.toLowerCase().replace(/\s+/g, '-')}`);
+      setUrl(downloadUrl);
     } catch (error) {
       console.error(`Failed to read ${label} image`, error);
-      alert(`Could not load the selected ${label.toLowerCase()} image.`);
+      alert(`Could not upload the selected ${label.toLowerCase()} image.`);
     }
   };
 
@@ -210,11 +211,13 @@ export default function AdminDashboard({
     }
 
     try {
-      const dataUrls = await Promise.all(imageFiles.map((file) => readImageAsDataUrl(file)));
-      setInput((current) => [current, ...dataUrls].filter(Boolean).join(', '));
+      const uploadedUrls = await Promise.all(
+        imageFiles.map((file) => uploadImageToStorage(file, 'admin-images/gallery'))
+      );
+      setInput((current) => [current, ...uploadedUrls].filter(Boolean).join(', '));
     } catch (error) {
       console.error('Failed to read gallery images', error);
-      alert('Could not load one or more gallery images.');
+      alert('Could not upload one or more gallery images.');
     }
   };
 
