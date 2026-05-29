@@ -4,7 +4,6 @@ import { formatCurrency } from '../utils';
 import { X, ShieldCheck, Truck, RotateCcw, Plus, Minus, ShoppingBag, Ruler, ChevronLeft, ChevronRight, Star, Calendar, Grid, Image, Maximize2, ZoomIn } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { motion } from 'motion/react';
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -280,19 +279,11 @@ export default function ProductDetailsModal({
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm overflow-y-auto"
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm overflow-y-auto animate-fade-in"
     >
-      <motion.div 
-        initial={{ opacity: 0, y: 35 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 25 }}
-        transition={{ duration: 0.52, ease: [0.16, 1, 0.3, 1] }}
-        className="relative bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 w-full max-w-4xl rounded-xl shadow-2xl overflow-y-auto md:overflow-hidden my-8 max-h-[92vh] flex flex-col md:flex-row border border-neutral-100 dark:border-neutral-850" 
+      <div 
+        className="relative bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 w-full max-w-4xl rounded-xl shadow-2xl overflow-y-auto md:overflow-hidden my-8 max-h-[92vh] flex flex-col md:flex-row border border-neutral-100 dark:border-neutral-850 animate-slide-up" 
         id="quickview-modal-container"
       >
         {/* Close Button Pin */}
@@ -364,14 +355,11 @@ export default function ProductDetailsModal({
                   onMouseLeave={handleMouseLeave}
                   className="w-full h-full cursor-zoom-in overflow-hidden relative"
                 >
-                  <motion.img
+                  <img
                     key={activeImageIndex}
                     src={galleryImages[activeImageIndex]}
                     alt={product.name}
-                    initial={{ opacity: 0.35, scale: 0.985 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.28, ease: 'easeOut' }}
-                    className="w-full h-full object-cover object-top transition-transform duration-200 ease-out md:group-hover:scale-[2.2]"
+                    className="w-full h-full object-cover object-top transition-transform duration-200 ease-out md:group-hover:scale-[2.2] animate-fade-in"
                     style={zoomStyle}
                     referrerPolicy="no-referrer"
                   />
@@ -1108,7 +1096,7 @@ export default function ProductDetailsModal({
             </div>
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Fullscreen Lightbox Portal Overlay */}
       {isLightboxOpen && (
@@ -1169,14 +1157,11 @@ export default function ProductDetailsModal({
               }}
               title="Click for Next Image or swipe to navigate"
             >
-              <motion.img
+              <img
                 key={lightboxIndex}
                 src={galleryImages[lightboxIndex]}
                 alt={`${product.name} large view ${lightboxIndex + 1}`}
-                initial={{ opacity: 0.45, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
-                className="w-full h-full object-contain cursor-pointer"
+                className="w-full h-full object-contain cursor-pointer animate-fade-in"
                 referrerPolicy="no-referrer"
               />
             </div>
@@ -1229,6 +1214,6 @@ export default function ProductDetailsModal({
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

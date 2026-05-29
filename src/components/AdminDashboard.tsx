@@ -107,6 +107,7 @@ export default function AdminDashboard({
   const [newSizes, setNewSizes] = useState<string[]>(['S', 'M', 'L', 'XL']);
   const [newGender, setNewGender] = useState<'men' | 'women' | 'unisex'>('men');
   const [newImagesInput, setNewImagesInput] = useState('');
+  const [newStock, setNewStock] = useState<number>(15);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
@@ -646,6 +647,11 @@ export default function AdminDashboard({
       return;
     }
 
+    if (newSizes.length === 0) {
+      alert('Please select at least one available size for this product.');
+      return;
+    }
+
     const skuNormalized = newSku.trim().toUpperCase();
     const SKU_FORMAT_REGEX = /^[A-Z]{3}-[A-Z]{2}-[A-Z]{2}-[0-9]{2}$/;
     if (!SKU_FORMAT_REGEX.test(skuNormalized)) {
@@ -681,6 +687,7 @@ export default function AdminDashboard({
       material: newMaterial,
       features: ['Bespoke embroidery design', 'Reinforced neck stitching', 'Signature fit'],
       gender: newGender,
+      stock: newStock,
       images: extraImages,
     };
 
@@ -694,6 +701,8 @@ export default function AdminDashboard({
     setNewImgUrl('');
     setNewImagesInput('');
     setNewGender('men');
+    setNewSizes(['S', 'M', 'L', 'XL']);
+    setNewStock(15);
     alert('Product added successfully!');
   };
 
@@ -948,8 +957,8 @@ export default function AdminDashboard({
             <div className="lg:col-span-8 space-y-8">
               
               {/* Phone dispatch config */}
-              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-100 space-y-3 font-sans">
-                <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold block">WhatsApp Order Dispatcher</span>
+              <div className="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-lg border border-neutral-100 dark:border-neutral-800 space-y-3 font-sans">
+                <span className="text-[10px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 font-bold block">WhatsApp Order Dispatcher</span>
                 <div className="flex items-center space-x-3">
                   <input
                     type="text"
@@ -957,14 +966,14 @@ export default function AdminDashboard({
                     value={whatsappNumber}
                     onChange={(e) => onUpdateWhatsapp(e.target.value)}
                     placeholder="Recipient phone, e.g., +94712345678"
-                    className="flex-grow px-3 py-2 border border-neutral-300 rounded text-xs font-mono outline-none focus:ring-1 focus:ring-black bg-white text-neutral-900 font-bold"
+                    className="flex-grow px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded text-xs font-mono outline-none focus:ring-1 focus:ring-black dark:focus:ring-white bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-bold"
                   />
-                  <span className="text-[10px] text-emerald-600 font-bold flex items-center space-x-1 flex-shrink-0 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center space-x-1 flex-shrink-0 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-900/45">
                     <Unlock className="w-3.5 h-3.5" />
                     <span>Active Live</span>
                   </span>
                 </div>
-                <p className="text-[11px] text-neutral-600 leading-normal">
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-normal">
                   Orders submitted through the checkout flow are forwarded as a custom pre-loaded text directly to this phone number on WhatsApp.
                 </p>
               </div>
@@ -972,77 +981,77 @@ export default function AdminDashboard({
               {/* Summary Stats Block: Total Revenue, successful transactions, average value, top customer */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
                 {/* Total Revenue Bento card */}
-                <div className="p-4 bg-white rounded-xl border border-neutral-200 shadow-3xs hover:border-neutral-350 transition-colors text-left space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-neutral-400">
-                    <span className="p-1 bg-emerald-50 text-emerald-700 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Revenue</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest">Total Revenue</span>
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-3xs hover:border-neutral-350 dark:hover:border-neutral-700 transition-colors text-left space-y-1.5 animate-fade-in">
+                  <div className="flex items-center space-x-1.5 text-neutral-400 dark:text-neutral-500">
+                    <span className="p-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Revenue</span>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-neutral-500 dark:text-neutral-400">Total Revenue</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-lg font-serif font-extrabold text-neutral-900">
+                    <p className="text-lg font-serif font-extrabold text-neutral-900 dark:text-white">
                       {formatCurrency(orderSummaryStats.totalRevenueLKR, 'LKR')}
                     </p>
-                    <p className="text-[10.5px] text-emerald-600 font-mono font-bold">
+                    <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
                       {formatCurrency(orderSummaryStats.totalRevenueUSD, 'USD')} LKR equiv.
                     </p>
                   </div>
-                  <p className="text-[9.5px] text-neutral-400 font-medium leading-relaxed">
+                  <p className="text-[9.5px] text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
                     Gross cumulative volume computed from standard checkout receipts.
                   </p>
                 </div>
 
                 {/* Successful Transactions Bento card */}
-                <div className="p-4 bg-white rounded-xl border border-neutral-200 shadow-3xs hover:border-neutral-350 transition-colors text-left space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-neutral-400">
-                    <span className="p-1 bg-blue-50 text-blue-700 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Volume</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest">Transactions</span>
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-3xs hover:border-neutral-350 dark:hover:border-neutral-700 transition-colors text-left space-y-1.5 animate-fade-in">
+                  <div className="flex items-center space-x-1.5 text-neutral-400 dark:text-neutral-500">
+                    <span className="p-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Volume</span>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-neutral-500 dark:text-neutral-400">Transactions</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-lg font-serif font-extrabold text-neutral-900">
+                    <p className="text-lg font-serif font-extrabold text-neutral-900 dark:text-white">
                       {orderSummaryStats.totalOrdersCount} Completed
                     </p>
-                    <p className="text-[10.5px] text-neutral-500 font-mono">
+                    <p className="text-[10.5px] text-neutral-500 dark:text-neutral-450 font-mono">
                       {orderSummaryStats.successfulPaidCount} Paid Receipts
                     </p>
                   </div>
-                  <p className="text-[9.5px] text-neutral-400 font-medium leading-relaxed">
+                  <p className="text-[9.5px] text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
                     Total checkout checkpoints that proceeded to WhatsApp dispatch.
                   </p>
                 </div>
 
                 {/* Average Order Value Bento card */}
-                <div className="p-4 bg-white rounded-xl border border-neutral-200 shadow-3xs hover:border-neutral-350 transition-colors text-left space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-neutral-400">
-                    <span className="p-1 bg-neutral-100 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Metrics</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest">Average Value</span>
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-3xs hover:border-neutral-350 dark:hover:border-neutral-700 transition-colors text-left space-y-1.5 animate-fade-in">
+                  <div className="flex items-center space-x-1.5 text-neutral-400 dark:text-neutral-500">
+                    <span className="p-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Metrics</span>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-neutral-550 dark:text-neutral-400">Average Value</span>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-lg font-serif font-extrabold text-neutral-900">
+                    <p className="text-lg font-serif font-extrabold text-neutral-900 dark:text-white">
                       {formatCurrency(orderSummaryStats.averageOrderValueLKR, 'LKR')}
                     </p>
-                    <p className="text-[10.5px] text-neutral-500 font-mono">
+                    <p className="text-[10.5px] text-neutral-500 dark:text-neutral-400 font-mono">
                       approx. {formatCurrency(orderSummaryStats.averageOrderValueUSD, 'USD')} USD
                     </p>
                   </div>
-                  <p className="text-[9.5px] text-neutral-400 font-medium leading-relaxed">
+                  <p className="text-[9.5px] text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
                     Average basket transaction density calculated from checkout session logs.
                   </p>
                 </div>
 
                 {/* Top Paying Customer Bento card */}
-                <div className="p-4 bg-white rounded-xl border border-neutral-200 shadow-3xs hover:border-neutral-350 transition-colors text-left space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-neutral-400">
-                    <span className="p-1 bg-neutral-100 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Demographics</span>
-                    <span className="text-[9px] uppercase font-bold tracking-widest">Top Customer</span>
+                <div className="p-4 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-3xs hover:border-neutral-350 dark:hover:border-neutral-700 transition-colors text-left space-y-1.5 animate-fade-in">
+                  <div className="flex items-center space-x-1.5 text-neutral-400 dark:text-neutral-500">
+                    <span className="p-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-750 dark:text-neutral-300 rounded-sm text-[8px] font-mono font-bold uppercase tracking-wider">Demographics</span>
+                    <span className="text-[9px] uppercase font-bold tracking-widest text-neutral-550 dark:text-neutral-400">Top Customer</span>
                   </div>
                   <div className="space-y-1 flex-grow">
-                    <p className="text-xs font-sans font-extrabold text-neutral-900 truncate" title={orderSummaryStats.topCustomerName}>
+                    <p className="text-xs font-sans font-extrabold text-neutral-900 dark:text-white truncate" title={orderSummaryStats.topCustomerName}>
                       {orderSummaryStats.topCustomerName}
                     </p>
-                    <p className="text-[11.5px] text-emerald-600 font-extrabold font-mono">
+                    <p className="text-[11.5px] text-emerald-600 dark:text-emerald-400 font-extrabold font-mono">
                       Total: {formatCurrency(orderSummaryStats.topCustomerLKR, 'LKR')}
                     </p>
                   </div>
-                  <p className="text-[9.5px] text-neutral-400 font-medium leading-relaxed">
+                  <p className="text-[9.5px] text-neutral-400 dark:text-neutral-500 font-medium leading-relaxed">
                     Highest aggregate purchasing index computed across historical invoice files.
                   </p>
                 </div>
@@ -1425,7 +1434,7 @@ export default function AdminDashboard({
                             <div>
                               <label className="block text-[10px] uppercase font-bold text-neutral-700 dark:text-neutral-300 mb-1 font-mono">Sizes Matrix</label>
                               <div className="flex gap-1">
-                                {['S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
+                                {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map((sz) => {
                                   const active = product.sizes.includes(sz);
                                   return (
                                     <button
@@ -1433,8 +1442,8 @@ export default function AdminDashboard({
                                       onClick={() => handleToggleSize(product.id, sz)}
                                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition-all cursor-pointer ${
                                         active
-                                          ? 'bg-neutral-900 text-white border-neutral-900'
-                                          : 'bg-white text-neutral-300 border-neutral-100 line-through'
+                                          ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-amber-400 dark:text-neutral-950 dark:border-amber-400 dark:shadow-xs'
+                                          : 'bg-white dark:bg-neutral-800 text-neutral-300 dark:text-neutral-600 border-neutral-100 dark:border-neutral-700 line-through font-normal'
                                       }`}
                                       id={`admin-size-toggle-${product.id}-${sz}`}
                                     >
@@ -1635,12 +1644,12 @@ export default function AdminDashboard({
                       <select
                         value={orderSortBy}
                         onChange={(e) => setOrderSortBy(e.target.value as any)}
-                        className="pl-8 pr-10 py-1.5 bg-white border border-neutral-250 rounded text-[10px] font-bold uppercase tracking-wider outline-none focus:ring-1 focus:ring-black w-full appearance-none cursor-pointer text-neutral-600 hover:text-black"
+                        className="pl-8 pr-10 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-250 dark:border-neutral-700 rounded text-[10px] font-bold uppercase tracking-wider outline-none focus:ring-1 focus:ring-black dark:focus:ring-white w-full appearance-none cursor-pointer text-neutral-600 dark:text-neutral-300 hover:text-black dark:hover:text-amber-400"
                       >
-                        <option value="dateNewest" className="text-neutral-900 bg-white">Date: Newest First</option>
-                        <option value="dateOldest" className="text-neutral-900 bg-white">Date: Oldest First</option>
-                        <option value="priceHighLow" className="text-neutral-900 bg-white">Price: High to Low</option>
-                        <option value="priceLowHigh" className="text-neutral-900 bg-white">Price: Low to High</option>
+                        <option value="dateNewest" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Date: Newest First</option>
+                        <option value="dateOldest" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Date: Oldest First</option>
+                        <option value="priceHighLow" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Price: High to Low</option>
+                        <option value="priceLowHigh" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Price: Low to High</option>
                       </select>
                       <ChevronDown className="w-3.5 h-3.5 text-neutral-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -1650,24 +1659,24 @@ export default function AdminDashboard({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Date Range:</span>
                         
-                        <div className="flex items-center space-x-1 font-mono text-[11px] bg-white border border-neutral-250 rounded px-2 py-1 select-none">
+                        <div className="flex items-center space-x-1 font-mono text-[11px] bg-white dark:bg-neutral-800 border border-neutral-250 dark:border-neutral-700 rounded px-2 py-1 select-none">
                           <span className="text-neutral-400 text-[8px] uppercase font-bold tracking-wider mr-1">From</span>
                           <input
                             type="date"
                             value={orderStartDate}
                             onChange={(e) => setOrderStartDate(e.target.value)}
-                            className="bg-transparent border-none outline-none text-neutral-800 text-[11px] cursor-pointer"
+                            className="bg-transparent border-none outline-none text-neutral-800 dark:text-neutral-100 text-[11px] cursor-pointer"
                             id="admin-order-start-date"
                           />
                         </div>
 
-                        <div className="flex items-center space-x-1 font-mono text-[11px] bg-white border border-neutral-250 rounded px-2 py-1 select-none">
+                        <div className="flex items-center space-x-1 font-mono text-[11px] bg-white dark:bg-neutral-800 border border-neutral-250 dark:border-neutral-700 rounded px-2 py-1 select-none">
                           <span className="text-neutral-400 text-[8px] uppercase font-bold tracking-wider mr-1">To</span>
                           <input
                             type="date"
                             value={orderEndDate}
                             onChange={(e) => setOrderEndDate(e.target.value)}
-                            className="bg-transparent border-none outline-none text-neutral-800 text-[11px] cursor-pointer"
+                            className="bg-transparent border-none outline-none text-neutral-800 dark:text-neutral-100 text-[11px] cursor-pointer"
                             id="admin-order-end-date"
                           />
                         </div>
@@ -1732,17 +1741,17 @@ export default function AdminDashboard({
                           }
                         }}
                         defaultValue=""
-                        className="text-[10px] font-extrabold px-2.5 py-1.5 bg-white border border-neutral-300 rounded cursor-pointer text-black font-sans uppercase tracking-wider outline-none focus:ring-1 focus:ring-black"
+                        className="text-[10px] font-extrabold px-2.5 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded cursor-pointer text-black dark:text-white font-sans uppercase tracking-wider outline-none focus:ring-1 focus:ring-black dark:focus:ring-white"
                       >
-                        <option value="" disabled className="text-neutral-500 bg-white">Change status to...</option>
-                        <option value="Pending" className="text-neutral-900 bg-white">Pending</option>
-                        <option value="Processing" className="text-neutral-900 bg-white">Processing</option>
-                        <option value="Shipped" className="text-neutral-900 bg-white">Shipped</option>
+                        <option value="" disabled className="text-neutral-500 bg-white dark:bg-neutral-800">Change status to...</option>
+                        <option value="Pending" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-white">Pending</option>
+                        <option value="Processing" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-white">Processing</option>
+                        <option value="Shipped" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-white">Shipped</option>
                       </select>
                       <button
                         onClick={() => setSelectedOrderIds([])}
                         type="button"
-                        className="text-[10px] font-extrabold text-neutral-450 hover:text-black uppercase tracking-wider border border-neutral-250 px-2.5 py-1.5 rounded bg-white hover:bg-neutral-50 transition-colors cursor-pointer"
+                        className="text-[10px] font-extrabold text-neutral-450 hover:text-black dark:text-neutral-400 dark:hover:text-white uppercase tracking-wider border border-neutral-250 dark:border-neutral-700 px-2.5 py-1.5 rounded bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -1756,7 +1765,7 @@ export default function AdminDashboard({
                     <button
                       onClick={handleToggleSelectAllOrders}
                       type="button"
-                      className="text-[10px] font-extrabold text-neutral-500 hover:text-black uppercase tracking-wider cursor-pointer font-sans"
+                      className="text-[10px] font-extrabold text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-amber-400 uppercase tracking-wider cursor-pointer font-sans"
                     >
                       {isAllOrdersSelected ? "☑ Deselect All Orders" : "☐ Select All Displayed Orders"}
                     </button>
@@ -1764,17 +1773,17 @@ export default function AdminDashboard({
                 )}
 
                 {orders.length === 0 ? (
-                  <p className="text-xs text-neutral-400 italic bg-white p-4 border border-dashed border-neutral-200 rounded text-center">No customer orders recorded in this session yet.</p>
+                  <p className="text-xs text-neutral-400 italic bg-white dark:bg-neutral-900 p-4 border border-dashed border-neutral-200 dark:border-neutral-800 rounded text-center">No customer orders recorded in this session yet.</p>
                 ) : filteredOrders.length === 0 ? (
-                  <p className="text-xs text-neutral-400 italic font-sans py-4 bg-white border border-neutral-100 rounded text-center">No orders found matching search criteria.</p>
+                  <p className="text-xs text-neutral-400 italic font-sans py-4 bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 rounded text-center font-bold">No orders found matching search criteria.</p>
                 ) : (
                   <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
                     {sortedOrders.map((o) => (
                       <div
                         key={`${o.orderId}-${orderSearchQuery}-${orderProductSearchQuery}-${orderSortBy}`}
                         onClick={() => setSelectedDetailedOrder(o)}
-                        className={`animate-fade-in p-3 border rounded cursor-pointer flex justify-between items-start text-xs font-mono transition-all duration-250 select-none shadow-xs hover:border-black ${
-                          selectedOrderIds.includes(o.orderId) ? 'border-neutral-900 bg-neutral-50/80 shadow-xs' : 'border-neutral-150 bg-white hover:bg-neutral-50'
+                        className={`animate-fade-in p-3 border rounded cursor-pointer flex justify-between items-start text-xs font-mono transition-all duration-250 select-none shadow-xs hover:border-black dark:hover:border-neutral-500 ${
+                          selectedOrderIds.includes(o.orderId) ? 'border-neutral-900 dark:border-amber-400 bg-neutral-50/80 dark:bg-neutral-800 shadow-xs' : 'border-neutral-150 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-850'
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -1916,6 +1925,20 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 mb-1.5 font-mono">Initial Stock Count</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={newStock}
+                    onChange={(e) => setNewStock(Math.max(0, Number(e.target.value)))}
+                    placeholder="15"
+                    className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-mono font-bold"
+                  />
+                  <p className="mt-1 text-[9px] text-neutral-500 dark:text-neutral-400 font-mono font-medium">System will auto-adjust status: 0 = Out of Stock, 1-4 = Few Left, 5+ = In Stock</p>
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 font-mono">Product Image</label>
@@ -1995,6 +2018,41 @@ export default function AdminDashboard({
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
+
+                {/* Available Sizes Config Selector - Immediately after image for better UX */}
+                <div>
+                  <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 mb-2 font-mono">Available Sizes</label>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                    {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map((sz) => {
+                      const isSelected = newSizes.includes(sz);
+                      return (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setNewSizes(newSizes.filter((s) => s !== sz));
+                            } else {
+                              setNewSizes([...newSizes, sz]);
+                            }
+                          }}
+                          className={`py-2 rounded border text-[10px] font-mono font-extrabold uppercase transition-all tracking-wider text-center cursor-pointer ${
+                            isSelected
+                              ? 'bg-neutral-950 border-neutral-950 text-white dark:bg-amber-400 dark:border-amber-400 dark:text-neutral-950 shadow-xs'
+                              : 'bg-white border-neutral-250 hover:border-black text-neutral-600 dark:bg-neutral-800 dark:border-neutral-700 dark:hover:border-neutral-600 dark:text-neutral-350'
+                          }`}
+                        >
+                          {sz}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {newSizes.length === 0 && (
+                    <p className="text-[10px] text-red-500 mt-1 font-sans font-bold select-none">
+                      ⚠️ At least one size must be selected for the apparel line.
+                    </p>
                   )}
                 </div>
 
@@ -2133,12 +2191,12 @@ export default function AdminDashboard({
       {/* Detailed Order Modal Overlay */}
       {selectedDetailedOrder && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs overflow-y-auto">
-          <div id="invoice-print-area" className="relative bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden my-8 max-h-[88vh] flex flex-col font-sans">
+          <div id="invoice-print-area" className="relative bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden my-8 max-h-[88vh] flex flex-col font-sans border border-neutral-100 dark:border-neutral-800">
             {/* Modal Header */}
-            <div className="p-5 border-b border-neutral-150 bg-neutral-900 text-white flex justify-between items-center">
+            <div className="p-5 border-b border-neutral-150 dark:border-neutral-800 bg-neutral-900 text-white flex justify-between items-center">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-mono font-bold">INVOICE SPECIFICATION</div>
-                <h3 className="text-md font-serif font-extrabold">Order #{selectedDetailedOrder.orderId}</h3>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-450 font-mono font-bold">INVOICE SPECIFICATION</div>
+                <h3 className="text-md font-serif font-extrabold text-white">Order #{selectedDetailedOrder.orderId}</h3>
               </div>
               <button
                 onClick={() => setSelectedDetailedOrder(null)}
@@ -2149,21 +2207,21 @@ export default function AdminDashboard({
             </div>
 
             {/* Modal Scroll Content */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-grow">
+            <div className="p-6 overflow-y-auto space-y-6 flex-grow bg-white dark:bg-neutral-900">
               {/* Section 1: Address and Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-neutral-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-neutral-200 dark:border-neutral-800">
                 {/* Customer Details */}
                 <div className="space-y-4 text-left">
-                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 font-mono">Recipient Details</h4>
+                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-450 font-mono">Recipient Details</h4>
                   <div className="space-y-2 text-xs">
                     <div>
                       <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Customer Name</span>
-                      <p className="font-sans font-bold text-neutral-900 text-sm">{selectedDetailedOrder.customerName}</p>
+                      <p className="font-sans font-bold text-neutral-900 dark:text-neutral-100 text-sm">{selectedDetailedOrder.customerName}</p>
                     </div>
                     <div className="flex space-x-4">
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Phone</span>
-                        <a href={`tel:${selectedDetailedOrder.phone}`} className="font-mono font-bold text-black underline flex items-center gap-1 hover:text-emerald-600">
+                        <a href={`tel:${selectedDetailedOrder.phone}`} className="font-mono font-bold text-black dark:text-amber-400 underline flex items-center gap-1 hover:text-emerald-600 dark:hover:text-amber-300">
                           <PhoneCall className="w-3 h-3" />
                           {selectedDetailedOrder.phone}
                         </a>
@@ -2171,7 +2229,7 @@ export default function AdminDashboard({
                       {selectedDetailedOrder.email && (
                         <div>
                           <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Email</span>
-                          <p className="font-mono text-neutral-700">{selectedDetailedOrder.email}</p>
+                          <p className="font-mono text-neutral-700 dark:text-neutral-300">{selectedDetailedOrder.email}</p>
                         </div>
                       )}
                     </div>
@@ -2180,20 +2238,20 @@ export default function AdminDashboard({
 
                 {/* Packing / Shipping Details */}
                 <div className="space-y-4 text-left">
-                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 font-mono">Shipping Coordinates</h4>
+                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-450 font-mono">Shipping Coordinates</h4>
                   <div className="space-y-2 text-xs">
                     <div>
                       <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Street Address</span>
-                      <p className="font-sans font-semibold text-neutral-900 leading-normal">{selectedDetailedOrder.address}</p>
+                      <p className="font-sans font-semibold text-neutral-900 dark:text-neutral-150 leading-normal">{selectedDetailedOrder.address}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">City</span>
-                        <p className="font-sans font-semibold text-neutral-800">{selectedDetailedOrder.city}</p>
+                        <p className="font-sans font-semibold text-neutral-800 dark:text-neutral-200">{selectedDetailedOrder.city}</p>
                       </div>
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Postal Code</span>
-                        <p className="font-sans font-semibold text-neutral-800 font-mono">{selectedDetailedOrder.postalCode}</p>
+                        <p className="font-sans font-semibold text-neutral-800 dark:text-neutral-200 font-mono">{selectedDetailedOrder.postalCode}</p>
                       </div>
                     </div>
                   </div>
@@ -2201,21 +2259,21 @@ export default function AdminDashboard({
               </div>
 
               {/* Section 2: Financial Details & Admin actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-neutral-200 bg-neutral-50 p-4 rounded-lg border border-neutral-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-850 p-4 rounded-lg border border-neutral-200 dark:border-neutral-750">
                 {/* Status Information */}
                 <div className="space-y-3 text-left">
-                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 font-mono">Financial State</h4>
+                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-450 font-mono">Financial State</h4>
                   <div className="space-y-2 text-xs">
                     <div>
                       <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Payment Method</span>
-                      <p className="font-mono font-bold text-neutral-900 uppercase tracking-wider">
+                      <p className="font-mono font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider">
                         {selectedDetailedOrder.paymentMethod === 'Card' ? '💳 Credit/Debit Card Link' : selectedDetailedOrder.paymentMethod === 'BankTransfer' ? '🏦 Manual Bank Transfer' : '📦 Cash on Delivery'}
                       </p>
                     </div>
                     {selectedDetailedOrder.paymentReference && (
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Payment Reference</span>
-                        <code className="bg-neutral-100 px-1.5 py-0.5 rounded text-[11px] block text-neutral-850 break-all select-all font-mono mt-1">
+                        <code className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-[11px] block text-neutral-850 dark:text-neutral-200 break-all select-all font-mono mt-1">
                           {selectedDetailedOrder.paymentReference}
                         </code>
                       </div>
@@ -2225,13 +2283,13 @@ export default function AdminDashboard({
 
                 {/* Payment Quick actions */}
                 <div className="space-y-3 text-left">
-                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 font-mono">Fulfillment Actions</h4>
+                  <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-450 font-mono">Fulfillment Actions</h4>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Settlement Status</span>
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider mt-1 ${
-                          selectedDetailedOrder.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                          selectedDetailedOrder.paymentStatus === 'Paid' ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40' : 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40'
                         }`}>
                           ● {selectedDetailedOrder.paymentStatus}
                         </span>
@@ -2240,22 +2298,22 @@ export default function AdminDashboard({
                       {onUpdateOrders && (
                         <button
                           onClick={() => handleTogglePaymentStatus(selectedDetailedOrder.orderId)}
-                          className="no-print px-2.5 py-1 bg-neutral-900 hover:bg-black text-white rounded text-[9px] tracking-wider font-bold uppercase cursor-pointer"
+                          className="no-print px-2.5 py-1 bg-neutral-900 hover:bg-black dark:bg-neutral-800 dark:hover:bg-neutral-700 text-white rounded text-[9px] tracking-wider font-bold uppercase cursor-pointer"
                         >
                           {selectedDetailedOrder.paymentStatus === 'Paid' ? 'Mark Pending' : 'Mark Paid'}
                         </button>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 py-2 border-t border-neutral-200 mt-1">
+                    <div className="flex items-center justify-between gap-4 py-2 border-t border-neutral-200 dark:border-neutral-750 mt-1">
                       <div>
                         <span className="text-neutral-400 font-mono block text-[9px] uppercase tracking-wider">Fulfillment Status</span>
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider mt-1 ${
                           (selectedDetailedOrder.fulfillmentStatus || 'Pending') === 'Shipped'
-                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                            ? 'bg-blue-105 dark:bg-blue-950/40 text-blue-800 dark:text-blue-450 border border-blue-200 dark:border-blue-900/40'
                             : (selectedDetailedOrder.fulfillmentStatus || 'Pending') === 'Processing'
-                            ? 'bg-amber-105 text-amber-800 bg-amber-50 border border-amber-200'
-                            : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                            ? 'bg-amber-105 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-450 border border-amber-200 dark:border-amber-900/40'
+                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700'
                         }`}>
                           ● {selectedDetailedOrder.fulfillmentStatus || 'Pending'}
                         </span>
@@ -2265,11 +2323,11 @@ export default function AdminDashboard({
                         <select
                           value={selectedDetailedOrder.fulfillmentStatus || 'Pending'}
                           onChange={(e) => handleUpdateFulfillmentStatus(selectedDetailedOrder.orderId, e.target.value as any)}
-                          className="no-print text-[9px] font-bold px-2 py-1 bg-white border border-neutral-300 rounded outline-none cursor-pointer uppercase tracking-wider text-black focus:ring-1 focus:ring-black"
+                          className="no-print text-[9px] font-bold px-2 py-1 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded outline-none cursor-pointer uppercase tracking-wider text-black dark:text-white focus:ring-1 focus:ring-black dark:focus:ring-white"
                         >
-                          <option value="Pending" className="text-neutral-900 bg-white">Pending</option>
-                          <option value="Processing" className="text-neutral-900 bg-white">Processing</option>
-                          <option value="Shipped" className="text-neutral-900 bg-white">Shipped</option>
+                          <option value="Pending" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Pending</option>
+                          <option value="Processing" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Processing</option>
+                          <option value="Shipped" className="text-neutral-900 bg-white dark:bg-neutral-800 dark:text-neutral-200">Shipped</option>
                         </select>
                       )}
                     </div>
@@ -2277,7 +2335,7 @@ export default function AdminDashboard({
                     {onUpdateOrders && (
                       <button
                         onClick={() => handleDeleteOrder(selectedDetailedOrder.orderId)}
-                        className="no-print w-full mt-1.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[9px] tracking-wider font-bold uppercase border border-rose-200 rounded flex items-center justify-center space-x-1 cursor-pointer"
+                        className="no-print w-full mt-1.5 py-1 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 dark:hover:bg-rose-900/20 text-rose-700 dark:text-rose-400 text-[9px] tracking-wider font-bold uppercase border border-rose-200 dark:border-rose-900/40 rounded flex items-center justify-center space-x-1 cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                         <span>Delete Order Record</span>
@@ -2289,10 +2347,10 @@ export default function AdminDashboard({
 
               {/* Section 3: Item Breakdown table */}
               <div className="space-y-3 text-left">
-                <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-400 font-mono">Ordered Garments</h4>
-                <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                <h4 className="text-[10px] uppercase tracking-wider font-bold text-neutral-450 font-mono">Ordered Garments</h4>
+                <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-mono uppercase text-[9px] tracking-wider">
+                    <thead className="bg-neutral-50 dark:bg-neutral-850 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 font-mono uppercase text-[9px] tracking-wider">
                       <tr>
                         <th className="px-4 py-2.5">Product Name</th>
                         <th className="px-4 py-2.5 text-center">Color/Size</th>
@@ -2301,29 +2359,29 @@ export default function AdminDashboard({
                         <th className="px-4 py-2.5 text-right">Subtotal</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-150 bg-white">
+                    <tbody className="divide-y divide-neutral-150 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
                       {selectedDetailedOrder.items.map((itm, idx) => (
-                        <tr key={idx} className="hover:bg-neutral-50/50">
-                          <td className="px-4 py-3 font-semibold text-neutral-900">{itm.productName}</td>
+                        <tr key={idx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-850/50">
+                          <td className="px-4 py-3 font-semibold text-neutral-900 dark:text-neutral-100">{itm.productName}</td>
                           <td className="px-4 py-3 text-center text-neutral-500 font-mono">
-                            <span className="bg-neutral-100 px-1.5 py-0.5 rounded text-[10px] border border-neutral-205 mr-1">{itm.color}</span>
-                            <span className="font-bold text-neutral-900 border border-neutral-205 px-1 py-0.5 rounded bg-neutral-50">{itm.size}</span>
+                            <span className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded text-[10px] border border-neutral-205 dark:border-neutral-750 text-neutral-700 dark:text-neutral-300 mr-1">{itm.color}</span>
+                            <span className="font-bold text-neutral-900 dark:text-white border border-neutral-205 dark:border-neutral-750 px-1 py-0.5 rounded bg-neutral-50 dark:bg-neutral-800">{itm.size}</span>
                           </td>
-                          <td className="px-4 py-3 text-center font-bold font-mono text-neutral-800">{itm.quantity}</td>
-                          <td className="px-4 py-3 text-right text-neutral-500 font-mono">
+                          <td className="px-4 py-3 text-center font-bold font-mono text-neutral-800 dark:text-neutral-200">{itm.quantity}</td>
+                          <td className="px-4 py-3 text-right text-neutral-500 dark:text-neutral-400 font-mono">
                             {formatCurrency(itm.price, currency)}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-neutral-900 font-mono">
+                          <td className="px-4 py-3 text-right font-bold text-neutral-900 dark:text-neutral-100 font-mono">
                             {formatCurrency(itm.price * itm.quantity, currency)}
                           </td>
                         </tr>
                       ))}
                       
                       {/* Delivery line (Simulate free if standard) */}
-                      <tr className="bg-neutral-50/30">
-                        <td colSpan={3} className="px-4 py-2.5 font-medium text-neutral-400 italic">Islands-wide Premium Courier</td>
-                        <td className="px-4 py-2.5 text-right text-neutral-400 font-mono">Fixed Delivery</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-emerald-650 font-mono uppercase text-[10px]">Free Shipping</td>
+                      <tr className="bg-neutral-50/30 dark:bg-neutral-850/30">
+                        <td colSpan={3} className="px-4 py-2.5 font-medium text-neutral-400 dark:text-neutral-500 italic">Islands-wide Premium Courier</td>
+                        <td className="px-4 py-2.5 text-right text-neutral-400 dark:text-neutral-500 font-mono">Fixed Delivery</td>
+                        <td className="px-4 py-2.5 text-right font-medium text-emerald-650 dark:text-emerald-400 font-mono uppercase text-[10px]">Free Shipping</td>
                       </tr>
 
                       {/* Grand total row */}
@@ -2410,18 +2468,18 @@ export default function AdminDashboard({
       {/* Bulk Delete Confirmation Modal */}
       {isBulkDeleteConfirmOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden p-6 border border-neutral-150 animate-fade-in text-left">
+          <div className="bg-white dark:bg-neutral-900 w-full max-w-md rounded-xl shadow-2xl overflow-hidden p-6 border border-neutral-150 dark:border-neutral-800 animate-fade-in text-left">
             <div className="flex items-start space-x-3 text-red-600 mb-4">
               <Trash2 className="w-6 h-6 flex-shrink-0 mt-0.5 animate-pulse" />
               <div>
-                <h3 className="text-sm font-serif font-extrabold uppercase tracking-wide text-neutral-900">Confirm Bulk Deletion</h3>
+                <h3 className="text-sm font-serif font-extrabold uppercase tracking-wide text-neutral-900 dark:text-white">Confirm Bulk Deletion</h3>
                 <p className="text-xs text-neutral-400 mt-1 font-sans">You are about to permanently remove selected apparel items from the database.</p>
               </div>
             </div>
 
-            <div className="bg-neutral-50 rounded-lg p-3.5 border border-neutral-200 mb-5 font-mono text-[10px] space-y-2">
-              <div className="font-extrabold text-neutral-500 uppercase tracking-wider">Products Selected ({selectedProductIds.length}):</div>
-              <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto text-neutral-800 font-semibold font-sans">
+            <div className="bg-neutral-50 dark:bg-neutral-850 rounded-lg p-3.5 border border-neutral-200 dark:border-neutral-800 mb-5 font-mono text-[10px] space-y-2">
+              <div className="font-extrabold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Products Selected ({selectedProductIds.length}):</div>
+              <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto text-neutral-800 dark:text-neutral-205 font-semibold font-sans">
                 {products
                   .filter((p) => selectedProductIds.includes(p.id))
                   .map((p) => (
@@ -2430,7 +2488,7 @@ export default function AdminDashboard({
               </ul>
             </div>
 
-            <div className="text-[11px] font-sans font-medium text-neutral-500 leading-normal mb-6">
+            <div className="text-[11px] font-sans font-medium text-neutral-500 dark:text-neutral-400 leading-normal mb-6">
               This process is irreversible. All selections will be wiped from current active inventory lists. Do you wish to proceed?
             </div>
 
@@ -2438,7 +2496,7 @@ export default function AdminDashboard({
               <button
                 type="button"
                 onClick={() => setIsBulkDeleteConfirmOpen(false)}
-                className="text-[10px] uppercase tracking-wider font-extrabold text-neutral-500 hover:text-black border border-neutral-250 px-4 py-2 hover:bg-neutral-50 rounded bg-white transition-all cursor-pointer"
+                className="text-[10px] uppercase tracking-wider font-extrabold text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white border border-neutral-250 dark:border-neutral-700 px-4 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 rounded bg-white dark:bg-neutral-800 transition-all cursor-pointer"
               >
                 No, Keep Them
               </button>

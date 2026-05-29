@@ -20,31 +20,6 @@ RESET='\033[0m'
 
 clear
 
-# Default flags
-PROVIDER=""
-AUTO=false
-
-# Parse CLI args for non-interactive deployments
-while [[ "$#" -gt 0 ]]; do
-    case "$1" in
-        -p|--provider)
-            PROVIDER="$2"
-            shift 2
-            ;;
-        -y|--yes|--auto)
-            AUTO=true
-            shift
-            ;;
-        -h|--help)
-            echo "Usage: bash deploy.sh [--provider <vercel|netlify|cloudflare|github|nginx|firebase>] [--yes]"
-            exit 0
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
-
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo -e "${CYAN}${BOLD}                 R E E D  A P P A R E L  -  D E P L O Y E R              ${RESET}"
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -95,87 +70,7 @@ else
     exit 1
 fi
 
-# 4. Provider Directory: either non-interactive via CLI flags or interactive as before
-if [ -n "$PROVIDER" ]; then
-    # Normalize provider keyword
-    case "$(echo "$PROVIDER" | tr '[:upper:]' '[:lower:]')" in
-        vercel|netlify|cloudflare|github|gh|nginx|firebase)
-            SEL_PROVIDER="$PROVIDER"
-            ;;
-        *)
-            echo -e "${YELLOW}Unknown provider: $PROVIDER. Falling back to interactive mode.${RESET}"
-            SEL_PROVIDER=""
-            ;;
-    esac
-fi
-
-if [ -n "$SEL_PROVIDER" ]; then
-    echo -e "${CYAN}${BOLD}Non-interactive deploy: provider=$SEL_PROVIDER, auto=$AUTO${RESET}\n"
-    case "$(echo "$SEL_PROVIDER" | tr '[:upper:]' '[:lower:]')" in
-        vercel)
-            if ! command -v vercel &> /dev/null; then
-                echo -e "${YELLOW}Vercel CLI not found. Installing...${RESET}"
-                npm install -g vercel || true
-            fi
-            if $AUTO; then
-                vercel --prod || { echo "vercel deploy failed"; exit 1; }
-            else
-                echo -e "Run: vercel or vercel --prod to deploy.${RESET}"
-            fi
-            ;;
-        netlify)
-            if ! command -v netlify &> /dev/null; then
-                echo -e "${YELLOW}Netlify CLI not found. Installing...${RESET}"
-                npm install -g netlify-cli || true
-            fi
-            if $AUTO; then
-                netlify deploy --dir=dist --prod || { echo "netlify deploy failed"; exit 1; }
-            else
-                echo -e "Run: netlify deploy --dir=dist --prod to deploy.${RESET}"
-            fi
-            ;;
-        cloudflare)
-            if $AUTO; then
-                npx wrangler pages deploy dist --project-name=reed-apparel || { echo "wrangler deploy failed"; exit 1; }
-            else
-                echo -e "Run: npx wrangler pages deploy dist --project-name=reed-apparel${RESET}"
-            fi
-            ;;
-        github|gh)
-            if $AUTO; then
-                npx gh-pages -d dist || { echo "gh-pages deploy failed"; exit 1; }
-            else
-                echo -e "Run: npm run deploy (or npx gh-pages -d dist) to publish to GitHub Pages.${RESET}"
-            fi
-            ;;
-        firebase)
-            if ! command -v firebase &> /dev/null; then
-                echo -e "${YELLOW}Firebase CLI not found. Installing...${RESET}"
-                npm install -g firebase-tools || true
-            fi
-            if [ ! -f "firebase.json" ]; then
-                echo -e "${RED}firebase.json not found. Please run 'firebase init hosting' first or provide a configured firebase.json.${RESET}"
-                exit 1
-            fi
-            if $AUTO; then
-                firebase deploy --only hosting || { echo "firebase deploy failed"; exit 1; }
-            else
-                echo -e "Run: firebase deploy --only hosting to publish.${RESET}"
-            fi
-            ;;
-        nginx)
-            echo -e "${CYAN}Nginx/static server selected. Please upload contents of dist/ to your webserver.${RESET}"
-            ;;
-        *)
-            echo -e "Unknown provider: $SEL_PROVIDER"
-            ;;
-    esac
-    echo ""
-    echo -e "${CYAN}Done.${RESET}"
-    exit 0
-fi
-
-# If we reach here, fall back to interactive menu (original behavior)
+# 4. Interactive Provider Directory
 echo -e "${CYAN}${BOLD}🌐 DEPLOYMENT DIRECTORY & ACTIONS:${RESET}"
 echo -e "The ${BOLD}dist/${RESET} folder contains clean, self-contained HTML (with embedded Tailwind CSS"
 echo -e "and bundled JS). It is compatible with any modern static web hosting provider."
@@ -248,7 +143,7 @@ case $choice in
         echo -e "   ${YELLOW}    root /var/www/reedapparel;${RESET}"
         echo -e "   ${YELLOW}    index index.html;${RESET}"
         echo -e "   ${YELLOW}    location / {${RESET}"
-        echo -e "   ${YELLOW}        try_files \\$uri \\$uri/ /index.html;${RESET}"
+        echo -e "   ${YELLOW}        try_files \$uri \$uri/ /index.html;${RESET}"
         echo -e "   ${YELLOW}    }${RESET}"
         echo -e "   ${YELLOW}}${RESET}"
         echo -e "   ------------------------------------------------------------------"
