@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
 
 export default function SocialFooter() {
   const socials = [
@@ -47,20 +46,17 @@ export default function SocialFooter() {
       </span>
       <div className="flex items-center justify-center gap-3.5 sm:gap-4">
         {socials.map((social) => (
-          <motion.a
+          <a
             key={social.id}
             href={social.url}
             target="_blank"
             rel="noopener noreferrer"
-            whileHover={{ y: -3, scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`group flex items-center gap-2 px-5 py-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900/40 font-mono text-[10px] sm:text-[11px] font-extrabold tracking-[0.16em] uppercase shadow-xs transition-colors duration-250 ${social.hoverColor}`}
+            className={`group flex items-center gap-2 px-5 py-2.5 rounded-full border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900/40 font-mono text-[10px] sm:text-[11px] font-extrabold tracking-[0.16em] uppercase shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-95 ${social.hoverColor}`}
             id={`social-footer-link-${social.id}`}
           >
             <span className="shrink-0">{social.icon}</span>
             <span>{social.name}</span>
-          </motion.a>
+          </a>
         ))}
       </div>
     </div>

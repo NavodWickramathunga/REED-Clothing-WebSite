@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { X, Search, Package, Clock, Truck, FileCheck2, Printer, AlertCircle, Calendar, MapPin, User, ShoppingBag, HelpCircle } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -109,19 +108,12 @@ export default function OrderTracker({
   const steps = getFulfillmentSteps(activeStatus);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm overflow-y-auto no-print"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm overflow-y-auto no-print animate-fade-in"
       id="order-tracker-overlay"
     >
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.44, ease: [0.16, 1, 0.3, 1] }}
-        className="relative bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden border border-neutral-100 dark:border-neutral-850 max-h-[92vh] flex flex-col"
+      <div
+        className="relative bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden border border-neutral-100 dark:border-neutral-850 max-h-[92vh] flex flex-col transform transition-all duration-300"
         id="order-tracker-container"
       >
         {/* Header bar */}
@@ -220,16 +212,11 @@ export default function OrderTracker({
           )}
 
           {/* Render result logs */}
-          <AnimatePresence mode="wait">
-            {searchedOrder && (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6 pt-2"
-                id="order-tracking-details"
-              >
+          {searchedOrder && (
+            <div
+              className="space-y-6 pt-2 animate-slide-up"
+              id="order-tracking-details"
+            >
                 {/* 1. Fulfillment Pipeline Tracker Visual */}
                 <div className="space-y-3.5">
                   <div className="flex justify-between items-center bg-neutral-900 dark:bg-neutral-900 text-white rounded p-3">
@@ -403,11 +390,10 @@ export default function OrderTracker({
                     </span>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

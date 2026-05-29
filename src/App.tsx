@@ -17,9 +17,9 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import OrderTracker from './components/OrderTracker';
 import SocialFooter from './components/SocialFooter';
 import ReactHelmet from './components/ReactHelmet';
+import BrandLogo from './components/BrandLogo';
 import { formatCurrency } from './utils';
 import { MessageSquare, BadgeCheck, HelpCircle, ArrowRight, Layers, PhoneCall, Info, Sparkles, Filter, ChevronDown, Check, Home, ShoppingBag, Settings } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   // --- Dark Mode Theme State ---
@@ -747,10 +747,11 @@ export default function App() {
       />
 
       {/* Dynamic Collection Showcase Description Header */}
-      <section id="essence" className="py-14 sm:py-24 lg:py-32 bg-white dark:bg-[#0c0c0b] text-center border-b border-neutral-100 dark:border-neutral-850 transition-colors duration-300">
-        <div className="max-w-3xl mx-auto px-4">
-          <span className="text-[9px] uppercase tracking-[0.25em] text-neutral-400 dark:text-neutral-500 font-mono font-bold block mb-2">THE REƎD STANDARD</span>
-          <p className="font-sans font-light text-base sm:text-lg text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-xl mx-auto">
+      <section id="essence" className="py-14 sm:py-24 lg:py-28 bg-white dark:bg-[#0c0c0b] text-center border-b border-neutral-100 dark:border-neutral-850 transition-colors duration-300">
+        <div className="max-w-3xl mx-auto px-4 flex flex-col items-center">
+          <BrandLogo size={90} className="mb-6 opacity-85 dark:opacity-90 text-neutral-900 dark:text-neutral-100" />
+          <span className="text-[10px] uppercase tracking-[0.3em] text-neutral-450 dark:text-neutral-500 font-mono font-bold block mb-3">THE REƎD STANDARD</span>
+          <p className="font-sans font-light text-base sm:text-lg text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-xl mx-auto italic">
             "We construct weighty, structural garments designed to hold their premium geometry perfectly. Hand-embroidered, boxy silhouettes built from organic double-knit cotton."
           </p>
         </div>
@@ -1121,34 +1122,23 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              /* Products Grid Frame with Framer Motion Layout animations */
-              <motion.div 
-                layout 
+              /* Products Grid Frame with clean entry transitions */
+              <div 
                 className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-6"
               >
-                <AnimatePresence mode="popLayout">
-                  {sortedProducts.map((p, idx) => (
-                    <motion.div
-                      layout
-                      key={p.id}
-                      initial={{ opacity: 0, scale: 0.92 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.92 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      <ProductCard
-                        product={p}
-                        currency={currency}
-                        onQuickView={(prod) => setActiveProduct(prod)}
-                        onAddToCart={(prod, sz) => handleAddToCart(prod, sz, 1)}
-                        isWishlisted={wishlist.includes(p.id)}
-                        onToggleWishlist={toggleWishlist}
-                        index={idx}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
+                {sortedProducts.map((p, idx) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    currency={currency}
+                    onQuickView={(prod) => setActiveProduct(prod)}
+                    onAddToCart={(prod, sz) => handleAddToCart(prod, sz, 1)}
+                    isWishlisted={wishlist.includes(p.id)}
+                    onToggleWishlist={toggleWishlist}
+                    index={idx}
+                  />
+                ))}
+              </div>
             )}
           </section>
         </div>

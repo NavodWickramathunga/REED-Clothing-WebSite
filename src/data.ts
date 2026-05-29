@@ -3,6 +3,7 @@ import { Product } from './types';
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'reed-navy-crewneck',
+    sku: 'RED-CN-NV-01',
     name: 'REED Signature Heavyweight Crewneck - Admiral Navy',
     priceUSD: 18.00,
     priceLKR: 5400,
@@ -34,6 +35,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-black-crewneck',
+    sku: 'RED-CN-BK-02',
     name: 'REED Signature Heavyweight Crewneck - Onyx Black',
     priceUSD: 18.00,
     priceLKR: 5400,
@@ -64,6 +66,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-green-crewneck',
+    sku: 'RED-CN-GR-03',
     name: 'REED Signature Heavyweight Crewneck - Forest Green',
     priceUSD: 18.00,
     priceLKR: 5400,
@@ -91,6 +94,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-white-crewneck',
+    sku: 'RED-CN-WH-04',
     name: 'REED Signature Heavyweight Crewneck - Arctic White',
     priceUSD: 18.00,
     priceLKR: 5400,
@@ -116,6 +120,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-women-sculpt-leggings',
+    sku: 'RED-LG-BK-05',
     name: 'REED Contour Sculpt High-Waist Leggings',
     priceUSD: 24.00,
     priceLKR: 7200,
@@ -142,6 +147,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-women-cross-bra',
+    sku: 'RED-BR-WH-06',
     name: 'REED Apex Cross-Back Sports Bra',
     priceUSD: 16.00,
     priceLKR: 4800,
@@ -168,6 +174,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-women-crop-top',
+    sku: 'RED-CT-AM-07',
     name: 'REED Ribbed Seamless crop top - Rust Amber',
     priceUSD: 14.00,
     priceLKR: 4200,
@@ -193,6 +200,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'reed-mens-training-hoodie',
+    sku: 'RED-HD-GR-08',
     name: 'REED Pro-Series Training Hoodie - Slate Gray',
     priceUSD: 24.00,
     priceLKR: 7200,

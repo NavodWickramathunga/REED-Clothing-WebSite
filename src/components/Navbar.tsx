@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Settings, Menu, X, ChevronDown, Sparkles, Home, Layers, Sun, Moon, Heart, Truck } from 'lucide-react';
 import { formatCurrency } from '../utils';
+import BrandLogo from './BrandLogo';
 
 interface NavbarProps {
   currency: 'USD' | 'LKR';
@@ -164,13 +165,14 @@ export default function Navbar({
               }}
               className="flex items-center space-x-1"
             >
-              <span className={`text-2xl font-serif tracking-[0.25em] font-extrabold select-none transition-colors duration-300 ${
-                isScrolled 
-                  ? theme === 'dark' ? 'text-white' : 'text-black' 
-                  : 'text-white'
-              }`}>
-                REƎD
-              </span>
+              <BrandLogo 
+                size={22} 
+                className={`transition-colors duration-300 ${
+                  isScrolled 
+                    ? theme === 'dark' ? 'text-white' : 'text-black' 
+                    : 'text-white'
+                }`} 
+              />
             </a>
             <span className={`text-[8px] uppercase tracking-[0.45em] font-mono -mt-0.5 font-bold transition-colors duration-300 ${
               isScrolled 
@@ -399,9 +401,9 @@ export default function Navbar({
             <div className={`flex justify-between items-center border-b pb-4 ${
               theme === 'dark' ? 'border-neutral-850' : 'border-neutral-100'
             }`}>
-              <div>
-                <span className="text-lg font-serif font-black tracking-[0.2em]">REƎD</span>
-                <span className={`text-[7px] tracking-[0.3em] font-mono block -mt-1 uppercase ${
+              <div className="flex flex-col items-start gap-0.5">
+                <BrandLogo size={18} className="text-neutral-900 dark:text-white self-start" />
+                <span className={`text-[7px] tracking-[0.3em] font-mono block uppercase ${
                   theme === 'dark' ? 'text-neutral-500' : 'text-neutral-400'
                 }`}>COLOMBO LABEL</span>
               </div>

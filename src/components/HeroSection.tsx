@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Sparkles, Volume2, VolumeX } from 'lucide-react';
-import { motion } from 'motion/react';
 
 interface HeroSectionProps {
   onExploreClick: () => void;
@@ -11,6 +10,11 @@ interface HeroSectionProps {
 export default function HeroSection({ onExploreClick, onSelectCategory, onSelectGender }: HeroSectionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -129,11 +133,10 @@ export default function HeroSection({ onExploreClick, onSelectCategory, onSelect
 
       {/* 💥 Carnage-Inspired Hero Content Panel overlay */}
       <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-2.5 max-w-4xl"
+        <div
+          className={`space-y-2.5 max-w-4xl transition-all duration-1000 ease-out ${
+            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
         >
           <span className="text-[10px] md:text-xs font-mono tracking-[0.35em] text-neutral-400 font-extrabold block uppercase">
             EXPLORE OUR COLLECTION
@@ -147,14 +150,13 @@ export default function HeroSection({ onExploreClick, onSelectCategory, onSelect
           <p className="text-[11px] sm:text-xs lg:text-sm text-neutral-450 font-light tracking-widest leading-relaxed uppercase max-w-xl font-sans pt-1">
             Re-engineered premium heavyweight sportswear and contour active apparel. Built for endurance.
           </p>
-        </motion.div>
+        </div>
 
         {/* 🛍️ Dual Collection CTA Action Buttons matching the screenshot exactly */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-          className="flex flex-row gap-3 pt-2"
+        <div 
+          className={`flex flex-row gap-3 pt-2 transition-all duration-1000 delay-300 ease-out ${
+            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}
         >
           <button 
             onClick={() => handleGenderAction('women')}
@@ -171,7 +173,7 @@ export default function HeroSection({ onExploreClick, onSelectCategory, onSelect
           >
             SHOP MENS
           </button>
-        </motion.div>
+        </div>
       </div>
 
       {/* Floating interactive scroll cue */}

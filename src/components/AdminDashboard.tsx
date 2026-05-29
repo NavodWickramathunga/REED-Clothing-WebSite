@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, StockStatus, OrderDetails } from '../types';
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { auth, storage } from '../firebase';
+import { auth } from '../firebase';
 import { 
   X, 
   Save, 
@@ -24,8 +23,8 @@ import {
   Terminal,
   ArrowRight,
   ChevronUp,
-  Upload,
-  Image as ImageIcon 
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import DailyOrdersChart from './DailyOrdersChart';
@@ -94,13 +93,9 @@ export default function AdminDashboard({
 
   // Form states for creating a new product
   const [newProductName, setNewProductName] = useState('');
+  const [newSku, setNewSku] = useState('');
+  const [isSkuOverridden, setIsSkuOverridden] = useState(false);
   
-  // --- Gemini API & Copywriter Assistant States ---
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiResult, setAiResult] = useState('');
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [isClearingLogs, setIsClearingLogs] = useState(false);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [newPriceUSD, setNewPriceUSD] = useState<number>(18);
   const [newPriceLKR, setNewPriceLKR] = useState<number>(5400);
   const [newDescription, setNewDescription] = useState('');
@@ -108,10 +103,12 @@ export default function AdminDashboard({
   const [newMaterial, setNewMaterial] = useState('100% Cotton Crewneck');
   const [newColorName, setNewColorName] = useState('Signature Grey');
   const [newColorValue, setNewColorValue] = useState('#8A8A8A');
-  const [newImgUrl, setNewImgUrl] = useState('https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80');
+  const [newImgUrl, setNewImgUrl] = useState('');
   const [newSizes, setNewSizes] = useState<string[]>(['S', 'M', 'L', 'XL']);
   const [newGender, setNewGender] = useState<'men' | 'women' | 'unisex'>('men');
   const [newImagesInput, setNewImagesInput] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Orders query states
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -131,6 +128,50 @@ export default function AdminDashboard({
     return () => clearTimeout(handler);
   }, [orderSearchInput]);
 
+  // Auto-generation helper logic for predicting and suggesting the next logical product SKU
+  useEffect(() => {
+    if (!isSkuOverridden) {
+      const getCategoryCode = (cat: string) => {
+        switch (cat) {
+          case 'Signature': return 'SG';
+          case 'Essentials': return 'ES';
+          case 'Limited': return 'LM';
+          default: return cat.slice(0, 2).toUpperCase();
+        }
+      };
+
+      const getGenderCode = (g: string) => {
+        switch (g) {
+          case 'men': return 'MN';
+          case 'women': return 'WN';
+          case 'unisex': return 'UN';
+          default: return 'XX';
+        }
+      };
+
+      let nextCounter = 1;
+      const existingSuffixes = products
+        .map(p => {
+          if (!p.sku) return 0;
+          const parts = p.sku.split('-');
+          if (parts.length === 4) {
+            const num = parseInt(parts[3], 10);
+            return isNaN(num) ? 0 : num;
+          }
+          return 0;
+        })
+        .filter(n => n > 0);
+
+      if (existingSuffixes.length > 0) {
+        nextCounter = Math.max(...existingSuffixes) + 1;
+      }
+      const counterStr = nextCounter.toString().padStart(2, '0');
+      const catCode = getCategoryCode(newCategory);
+      const genCode = getGenderCode(newGender);
+      setNewSku(`RED-${catCode}-${genCode}-${counterStr}`);
+    }
+  }, [newCategory, newGender, products, isSkuOverridden]);
+
   // Compute live queue counts for each fulfillment status dynamically
   const pendingCount = useMemo(() => orders.filter((o) => (o.fulfillmentStatus || 'Pending') === 'Pending').length, [orders]);
   const processingCount = useMemo(() => orders.filter((o) => o.fulfillmentStatus === 'Processing').length, [orders]);
@@ -140,6 +181,7 @@ export default function AdminDashboard({
   // Inline product editing
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [editingSku, setEditingSku] = useState('');
   const [editingPriceUSD, setEditingPriceUSD] = useState<number>(0);
   const [editingPriceLKR, setEditingPriceLKR] = useState<number>(0);
   const [editingStock, setEditingStock] = useState<number>(0);
@@ -170,57 +212,6 @@ export default function AdminDashboard({
   }[]>([]);
   const [activeToast, setActiveToast] = useState<{ title: string; desc: string } | null>(null);
 
-  const uploadImageToStorage = async (file: File, folder: string) => {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const filePath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
-    const storageRef = ref(storage, filePath);
-    const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
-    return getDownloadURL(snapshot.ref);
-  };
-
-  const handleSingleImageUpload = async (
-    file: File | undefined,
-    setUrl: React.Dispatch<React.SetStateAction<string>>,
-    label: string
-  ) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert(`Please choose an image file for ${label}.`);
-      return;
-    }
-
-    try {
-      const downloadUrl = await uploadImageToStorage(file, `admin-images/${label.toLowerCase().replace(/\s+/g, '-')}`);
-      setUrl(downloadUrl);
-    } catch (error) {
-      console.error(`Failed to read ${label} image`, error);
-      alert(`Could not upload the selected ${label.toLowerCase()} image.`);
-    }
-  };
-
-  const handleGalleryUpload = async (
-    files: FileList | null,
-    setInput: React.Dispatch<React.SetStateAction<string>>
-  ) => {
-    if (!files || files.length === 0) return;
-
-    const imageFiles = Array.from(files).filter((file) => file.type.startsWith('image/'));
-    if (imageFiles.length === 0) {
-      alert('Please choose image files for the gallery upload.');
-      return;
-    }
-
-    try {
-      const uploadedUrls = await Promise.all(
-        imageFiles.map((file) => uploadImageToStorage(file, 'admin-images/gallery'))
-      );
-      setInput((current) => [current, ...uploadedUrls].filter(Boolean).join(', '));
-    } catch (error) {
-      console.error('Failed to read gallery images', error);
-      alert('Could not upload one or more gallery images.');
-    }
-  };
-
   const triggerSimulatedEmailAlert = (productName: string, status: string) => {
     const newAlert = {
       id: 'EMAIL-' + Math.floor(10000 + Math.random() * 90000),
@@ -245,99 +236,7 @@ export default function AdminDashboard({
     }, 6000);
   };
 
-  const handleGenerateAi = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!aiPrompt.trim()) return;
 
-    setIsGeneratingAi(true);
-    const startTime = Date.now();
-    try {
-      const resp = await fetch('/api/gemini/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
-
-      const data = await resp.json();
-      const endTime = Date.now();
-      const latency = endTime - startTime;
-
-      if (data.success) {
-        setAiResult(data.text);
-        
-        // Log to Firebase Firestore gemini_api_logs securely
-        try {
-          const { collection, addDoc } = await import('firebase/firestore');
-          const { db } = await import('../firebase');
-          await addDoc(collection(db, 'gemini_api_logs'), {
-            timestamp: new Date().toISOString(),
-            prompt: aiPrompt,
-            status: 'Success',
-            response: data.text,
-            latency,
-            model: 'gemini-3.5-flash',
-          });
-        } catch (dbErr) {
-          console.error("Failed to write Gemini log to Firestore:", dbErr);
-        }
-      } else {
-        const errMsg = data.error || 'Failed to generate content';
-        setAiResult(`Error: ${errMsg}`);
-        
-        try {
-          const { collection, addDoc } = await import('firebase/firestore');
-          const { db } = await import('../firebase');
-          await addDoc(collection(db, 'gemini_api_logs'), {
-            timestamp: new Date().toISOString(),
-            prompt: aiPrompt,
-            status: 'Error',
-            response: errMsg,
-            latency,
-            model: 'gemini-3.5-flash',
-          });
-        } catch (dbErr) {
-          console.error("Failed to write Gemini error log to Firestore:", dbErr);
-        }
-      }
-    } catch (err: any) {
-      const errMsg = err.message || String(err);
-      setAiResult(`Network Error: ${errMsg}`);
-      const latency = Date.now() - startTime;
-
-      try {
-        const { collection, addDoc } = await import('firebase/firestore');
-        const { db } = await import('../firebase');
-        await addDoc(collection(db, 'gemini_api_logs'), {
-          timestamp: new Date().toISOString(),
-          prompt: aiPrompt,
-          status: 'Error',
-          response: errMsg,
-          latency,
-          model: 'gemini-3.5-flash',
-        });
-      } catch (dbErr) {
-        console.error("Failed to write network error to log:", dbErr);
-      }
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  };
-
-  const handleClearLogs = async () => {
-    if (!confirm("Are you sure you want to clear all Gemini API request logs in Firestore?")) return;
-    setIsClearingLogs(true);
-    try {
-      const { collection, getDocs, deleteDoc, doc } = await import('firebase/firestore');
-      const { db } = await import('../firebase');
-      const qSnap = await getDocs(collection(db, 'gemini_api_logs'));
-      const deletePromises = qSnap.docs.map(d => deleteDoc(doc(db, 'gemini_api_logs', d.id)));
-      await Promise.all(deletePromises);
-    } catch (err) {
-      console.error("Failed to clear logs:", err);
-    } finally {
-      setIsClearingLogs(false);
-    }
-  };
 
   const handleBulkUpdateStatus = (status: StockStatus) => {
     if (selectedProductIds.length === 0) return;
@@ -620,6 +519,20 @@ export default function AdminDashboard({
       alert("Product name cannot be empty.");
       return;
     }
+    if (!editingSku.trim()) {
+      alert("Product SKU cannot be empty.");
+      return;
+    }
+    const editSkuNormalized = editingSku.trim().toUpperCase();
+    const SKU_FORMAT_REGEX = /^[A-Z]{3}-[A-Z]{2}-[A-Z]{2}-[0-9]{2}$/;
+    if (!SKU_FORMAT_REGEX.test(editSkuNormalized)) {
+      alert("Invalid SKU format. The SKU must exactly match the format 'RED-CN-XX-00' (e.g., 3 letters, 2 letters, 2 letters, 2 digits separated by dashes, such as 'RED-CN-BK-09').");
+      return;
+    }
+    if (products.some(p => p.id !== productId && p.sku.toUpperCase() === editSkuNormalized)) {
+      alert(`The SKU "${editSkuNormalized}" is already used by another product.`);
+      return;
+    }
     if (isNaN(editingPriceUSD) || editingPriceUSD < 0 || isNaN(editingPriceLKR) || editingPriceLKR < 0) {
       alert("Prices must be valid positive numbers.");
       return;
@@ -663,6 +576,7 @@ export default function AdminDashboard({
         return {
           ...p,
           name: editingName.trim(),
+          sku: editingSku.trim().toUpperCase(),
           priceUSD: editingPriceUSD,
           priceLKR: editingPriceLKR,
           stock: editingStock,
@@ -692,10 +606,54 @@ export default function AdminDashboard({
     onUpdateProducts(updated);
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewImgUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewImgUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProductName || !newImgUrl) {
-      alert('Please fill out the product name and image URL fields.');
+    if (!newProductName || !newImgUrl || !newSku.trim()) {
+      alert('Please fill out all required fields: name, SKU, and image URL.');
+      return;
+    }
+
+    const skuNormalized = newSku.trim().toUpperCase();
+    const SKU_FORMAT_REGEX = /^[A-Z]{3}-[A-Z]{2}-[A-Z]{2}-[0-9]{2}$/;
+    if (!SKU_FORMAT_REGEX.test(skuNormalized)) {
+      alert("Invalid SKU format. The SKU must exactly match the format 'RED-CN-XX-00' (e.g., 3 letters, 2 letters, 2 letters, 2 digits separated by dashes, such as 'RED-CN-BK-09').");
+      return;
+    }
+    if (products.some(p => p.sku && p.sku.toUpperCase() === skuNormalized)) {
+      alert(`The SKU "${skuNormalized}" already exists. Please choose a unique SKU.`);
       return;
     }
 
@@ -705,6 +663,7 @@ export default function AdminDashboard({
 
     const newProd: Product = {
       id: 'reed-' + Math.floor(1000 + Math.random() * 9000),
+      sku: skuNormalized,
       name: newProductName,
       priceUSD: Number(newPriceUSD),
       priceLKR: Number(newPriceLKR),
@@ -729,8 +688,10 @@ export default function AdminDashboard({
     
     // reset fields
     setNewProductName('');
+    setNewSku('');
+    setIsSkuOverridden(false);
     setNewDescription('');
-    setNewImgUrl('https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80');
+    setNewImgUrl('');
     setNewImagesInput('');
     setNewGender('men');
     alert('Product added successfully!');
@@ -851,15 +812,12 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
-      <div className="relative bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden my-8 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-neutral-100 dark:bg-neutral-950 overflow-y-auto flex flex-col min-h-screen">
+      <div className="relative bg-white dark:bg-neutral-900 w-full flex-grow flex flex-col min-h-screen">
         {/* Header Indicator */}
-        <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-900 text-white">
-          <div className="flex items-center space-x-2">
-            <span className="p-1 px-2.5 bg-amber-500 rounded-sm text-[9px] font-bold uppercase text-black font-mono">
-              BRAND PORTAL
-            </span>
-            <h2 className="text-md font-serif font-extrabold tracking-tight">REƎD Admin Workspace</h2>
+        <div className="p-6 border-b border-neutral-150 dark:border-neutral-800 flex items-center justify-between bg-neutral-950 text-white">
+          <div className="flex items-center">
+            <h2 className="text-md sm:text-lg font-serif font-extrabold tracking-tight">REƎD Admin Workspace</h2>
           </div>
           <div className="flex items-center space-x-4">
             {isAuthenticated && firebaseUser && (
@@ -888,131 +846,104 @@ export default function AdminDashboard({
 
         {/* AUTHENTICATION GATE */}
         {!isAuthenticated ? (
-          <div className="flex-grow flex flex-col items-center justify-center p-8 text-center max-w-2xl mx-auto space-y-5">
-            <div className="w-full rounded-2xl border border-neutral-200 bg-neutral-50/90 p-5 text-left shadow-sm space-y-4">
-              <div className="flex items-center gap-3">
-                <Lock className="w-10 h-10 text-neutral-900 shrink-0" />
-                <div>
-                  <h3 className="text-md font-serif font-bold text-neutral-900">Protected Workspace</h3>
-                  <p className="text-[11px] uppercase tracking-[0.28em] font-black text-neutral-500">Admin access gate</p>
+          <div className="flex-grow flex items-center justify-center p-4">
+            <div className="bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 p-8 rounded-xl shadow-xl w-full max-w-md text-center space-y-6 transition-all">
+              <div className="flex flex-col items-center space-y-2">
+                <div className="p-3 bg-neutral-900 dark:bg-amber-400 rounded-full text-white dark:text-neutral-950 mb-1">
+                  <Lock className="w-6 h-6" />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm text-neutral-700 leading-6">
-                  This panel is the control room for product updates, stock changes, order monitoring, and brand image refreshes.
-                </p>
-                <p className="text-xs text-neutral-500 leading-relaxed">
-                  Unlock it with the shared admin code, or use Google sign-in for cloud Firestore access. Once inside, you can update product photos directly from the same screen.
+                <h3 className="text-lg font-serif font-bold text-neutral-950 dark:text-white">Protected Workspace</h3>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-sm">
+                  Authenticate using the brand password or sign in with Google to gain cloud Firestore access.
                 </p>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-neutral-200 bg-white p-3">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Inventory</p>
-                  <p className="mt-1 text-xs text-neutral-700 leading-5">Adjust prices, stock, sizes, and status in one place.</p>
-                </div>
-                <div className="rounded-xl border border-neutral-200 bg-white p-3">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Media</p>
-                  <p className="mt-1 text-xs text-neutral-700 leading-5">Replace the main image, hover image, or gallery photos.</p>
-                </div>
-                <div className="rounded-xl border border-neutral-200 bg-white p-3">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-neutral-500">Orders</p>
-                  <p className="mt-1 text-xs text-neutral-700 leading-5">Track live order records, fulfillment status, and exports.</p>
-                </div>
-              </div>
-            </div>
-
-            <form onSubmit={handleLogin} className="w-full max-w-md space-y-3 text-left">
-              <label htmlFor="admin-password-input" className="block text-[10px] uppercase font-bold tracking-widest text-neutral-600 font-mono">
-                Admin Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password (use 'viva123')"
-                  autoComplete="current-password"
-                  spellCheck={false}
-                  className="w-full pl-3 pr-10 py-3 border border-neutral-400 bg-white text-neutral-950 placeholder-neutral-500 rounded-lg text-sm font-mono font-bold tracking-widest outline-none shadow-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
-                  id="admin-password-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-900 transition-colors focus:outline-none pointer-events-auto cursor-pointer"
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4.5 h-4.5" />
-                  ) : (
-                    <Eye className="w-4.5 h-4.5" />
-                  )}
-                </button>
-              </div>
-              <p className="text-[11px] text-neutral-500 leading-relaxed">
-                Tip: use the eye icon if you want to see the characters while typing.
-              </p>
-              {authError && <div className="text-[10px] text-red-500 font-semibold font-mono">{authError}</div>}
-              <button
-                type="submit"
-                className="w-full py-3 bg-neutral-950 hover:bg-black text-white rounded-lg text-xs font-bold tracking-wider uppercase transition-colors pointer-events-auto cursor-pointer shadow-sm"
-                id="admin-auth-submit"
-              >
-                Unlock Dashboard with Password
-              </button>
-            </form>
-
-            <div className="flex items-center justify-center space-x-2 w-full py-2">
-              <div className="h-[1px] bg-neutral-200 flex-grow"></div>
-              <span className="text-[10px] text-neutral-400 font-mono uppercase bg-white px-2">or</span>
-              <div className="h-[1px] bg-neutral-200 flex-grow"></div>
-            </div>
-
-            <div className="w-full space-y-2">
-              {firebaseUser ? (
-                <div className="space-y-2">
-                  <div className="p-2.5 bg-neutral-50 rounded border border-neutral-200 text-xs text-left">
-                    <p className="text-neutral-500 text-[11px] uppercase tracking-wider">Signed in as:</p>
-                    <p className="font-mono text-neutral-800 font-bold overflow-hidden text-ellipsis">{firebaseUser.email}</p>
-                    {firebaseUser.email === "navodwickramathunga@gmail.com" ? (
-                      <p className="text-green-600 text-[10px] font-medium mt-1">✓ Authorized Admin (Sync Live!)</p>
-                    ) : (
-                      <p className="text-amber-600 text-[10px] mt-1 leading-normal">
-                        ⚠ Unauthorized Email. Sign in as <strong>navodwickramathunga@gmail.com</strong> for Cloud Writes, or unlock locally using the password above.
-                      </p>
-                    )}
-                  </div>
+              <form onSubmit={handleLogin} className="w-full space-y-4">
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password (use 'viva123')"
+                    className="w-full pl-3.5 pr-10 py-3 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-center text-xs font-mono font-bold tracking-widest outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs"
+                    id="admin-password-input"
+                  />
                   <button
-                    onClick={handleSignOut}
-                    className="w-full py-2 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 rounded text-xs font-medium cursor-pointer"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-350 transition-colors cursor-pointer"
+                    title={showPassword ? "Hide password" : "Show password"}
                   >
-                    Disconnect Google Account
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
-              ) : (
+                {authError && <div className="text-[10px] text-red-500 font-bold font-mono text-center">{authError}</div>}
                 <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  className="w-full py-2.5 hover:bg-neutral-50 border border-neutral-300 text-neutral-800 rounded text-xs font-bold transition-colors flex items-center justify-center space-x-2 cursor-pointer"
+                  type="submit"
+                  className="w-full py-3 bg-neutral-950 hover:bg-black dark:bg-amber-400 dark:hover:bg-amber-300 dark:text-neutral-950 border dark:border-transparent text-white rounded text-xs font-bold tracking-wider uppercase transition-colors cursor-pointer shadow-sm"
+                  id="admin-auth-submit"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22-.03-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  <span>Sign in with Google</span>
+                  Unlock Dashboard with Password
                 </button>
-              )}
+              </form>
+
+              <div className="flex items-center justify-center space-x-2 w-full py-1">
+                <div className="h-[1px] bg-neutral-200 dark:bg-neutral-800 flex-grow"></div>
+                <span className="text-[10px] text-neutral-400 font-mono uppercase bg-transparent px-2">or</span>
+                <div className="h-[1px] bg-neutral-200 dark:bg-neutral-800 flex-grow"></div>
+              </div>
+
+              <div className="w-full">
+                {firebaseUser ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 text-xs text-left">
+                      <p className="text-neutral-500 dark:text-neutral-400 text-[10px] font-bold uppercase tracking-wider mb-1">Signed in as:</p>
+                      <p className="font-mono text-neutral-800 dark:text-neutral-200 font-bold overflow-hidden text-ellipsis">{firebaseUser.email}</p>
+                      {firebaseUser.email === "navodwickramathunga@gmail.com" ? (
+                        <p className="text-green-600 dark:text-green-400 text-[10px] font-bold mt-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                          <span>Authorized Live Workspace Sync Active</span>
+                        </p>
+                      ) : (
+                        <p className="text-amber-600 dark:text-amber-400 text-[10px] mt-1.5 leading-normal">
+                          ⚠ Unauthorized Email. Sign in as <strong>navodwickramathunga@gmail.com</strong> for Cloud Writes, or unlock locally using the password above.
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full py-2 hover:bg-neutral-200 dark:hover:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 text-neutral-750 dark:text-neutral-250 rounded text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Disconnect Google Account
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    className="w-full py-2.5 bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 text-neutral-850 dark:text-neutral-200 rounded text-xs font-bold transition-colors flex items-center justify-center space-x-2.5 cursor-pointer shadow-2xs"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22-.03-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span>Sign in with Google</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ) : (
           /* MAIN UNLOCKED INTERFACE GRID */
-          <div className="flex-grow overflow-y-auto p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+          <div className="flex-grow overflow-y-auto p-6 md:p-8 w-full max-w-[98%] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+
             {/* LEFT AREA: STOCK CONTROLS & GENERAL SETTINGS (8 cols) */}
             <div className="lg:col-span-8 space-y-8">
               
@@ -1253,6 +1184,7 @@ export default function AdminDashboard({
                               if (editingProductId !== product.id) {
                                 setEditingProductId(product.id);
                                 setEditingName(product.name);
+                                setEditingSku(product.sku || '');
                                 setEditingPriceUSD(product.priceUSD);
                                 setEditingPriceLKR(product.priceLKR);
                                 setEditingStock(product.stock !== undefined ? product.stock : (product.status === 'Out of Stock' ? 0 : product.status === 'Few Left' ? 3 : 15));
@@ -1275,15 +1207,29 @@ export default function AdminDashboard({
                             <div className="min-w-0 flex-1">
                               {editingProductId === product.id ? (
                                 <div className="space-y-2 my-1 bg-neutral-50 dark:bg-neutral-900/60 p-3.5 rounded-lg border border-neutral-300 dark:border-neutral-800 font-sans shadow-3xs">
-                                  <div>
-                                    <label className="block text-[10px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Product Title</label>
-                                    <input
-                                      type="text"
-                                      value={editingName}
-                                      onChange={(e) => setEditingName(e.target.value)}
-                                      className="w-full max-w-sm px-2.5 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-xs text-neutral-900 dark:text-white font-semibold shadow-3xs"
-                                      id={`inline-editing-name-${product.id}`}
-                                    />
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div>
+                                      <label className="block text-[10px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Product Title</label>
+                                      <input
+                                        type="text"
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-xs text-neutral-900 dark:text-white font-semibold shadow-3xs"
+                                        id={`inline-editing-name-${product.id}`}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Product SKU</label>
+                                      <input
+                                        type="text"
+                                        value={editingSku}
+                                        onChange={(e) => setEditingSku(e.target.value)}
+                                        placeholder="RED-CN-XX-00"
+                                        title="Expected format: RED-CN-XX-00 (3 letters, 2 letters, 2 letters, 2 digits)"
+                                        className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded text-xs text-neutral-900 dark:text-white font-mono font-bold shadow-3xs uppercase"
+                                        id={`inline-editing-sku-${product.id}`}
+                                      />
+                                    </div>
                                   </div>
                                   <div className="grid grid-cols-3 gap-2.5">
                                     <div>
@@ -1328,43 +1274,67 @@ export default function AdminDashboard({
                                       <span className="text-[10px] uppercase font-black tracking-widest text-neutral-800 dark:text-neutral-250 font-mono">📸 Photography Asset & Media Refresher</span>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                                      <div>
-                                        <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Primary Image URL</label>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                          <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono">Primary Image</label>
+                                          <label className="text-[9px] flex items-center gap-1 font-bold text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer select-none">
+                                            <Upload className="w-2.5 h-2.5" />
+                                            <span>Upload</span>
+                                            <input 
+                                              type="file" 
+                                              accept="image/*" 
+                                              className="hidden" 
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const reader = new FileReader();
+                                                  reader.onloadend = () => {
+                                                    setEditingImgUrl(reader.result as string);
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }} 
+                                            />
+                                          </label>
+                                        </div>
                                         <input
                                           type="text"
                                           value={editingImgUrl}
                                           onChange={(e) => setEditingImgUrl(e.target.value)}
-                                          className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
+                                          placeholder="URL or base64 data"
+                                          className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[10px] font-mono text-neutral-900 dark:text-white truncate focus:outline-none focus:ring-1 focus:ring-black"
                                         />
-                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
-                                          <Upload className="w-3 h-3" />
-                                          <span>Upload primary image</span>
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setEditingImgUrl, 'Primary image')}
-                                          />
-                                        </label>
                                       </div>
-                                      <div>
-                                        <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Hover Image URL</label>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                          <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono">Hover Image</label>
+                                          <label className="text-[9px] flex items-center gap-1 font-bold text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer select-none">
+                                            <Upload className="w-2.5 h-2.5" />
+                                            <span>Upload</span>
+                                            <input 
+                                              type="file" 
+                                              accept="image/*" 
+                                              className="hidden" 
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                  const reader = new FileReader();
+                                                  reader.onloadend = () => {
+                                                    setEditingHoverImgUrl(reader.result as string);
+                                                  };
+                                                  reader.readAsDataURL(file);
+                                                }
+                                              }} 
+                                            />
+                                          </label>
+                                        </div>
                                         <input
                                           type="text"
                                           value={editingHoverImgUrl}
                                           onChange={(e) => setEditingHoverImgUrl(e.target.value)}
-                                          className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
+                                          placeholder="URL or base64 data"
+                                          className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[10px] font-mono text-neutral-900 dark:text-white truncate focus:outline-none focus:ring-1 focus:ring-black"
                                         />
-                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
-                                          <Upload className="w-3 h-3" />
-                                          <span>Upload hover image</span>
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setEditingHoverImgUrl, 'Hover image')}
-                                          />
-                                        </label>
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
@@ -1377,17 +1347,6 @@ export default function AdminDashboard({
                                           placeholder="https://image1.com, https://image2.com"
                                           className="w-full px-2.5 py-1.5 bg-white dark:bg-neutral-850 border border-neutral-300 dark:border-neutral-700 rounded text-[11px] font-mono text-neutral-900 dark:text-white truncate"
                                         />
-                                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-850 px-2 py-2 text-[9px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
-                                          <Upload className="w-3 h-3" />
-                                          <span>Upload gallery photos</span>
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            multiple
-                                            className="hidden"
-                                            onChange={(e) => handleGalleryUpload(e.target.files, setEditingImagesInput)}
-                                          />
-                                        </label>
                                       </div>
                                       <div>
                                         <label className="block text-[9px] uppercase font-bold text-neutral-700 dark:text-neutral-300 font-mono mb-1">Gender Group</label>
@@ -1428,6 +1387,9 @@ export default function AdminDashboard({
                                     )}
                                   </h4>
                                   <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-neutral-950 dark:bg-neutral-100 border border-neutral-900 dark:border-neutral-300 text-white dark:text-neutral-950 font-mono text-[10px] font-black uppercase tracking-wider shadow-sm">
+                                      SKU: {product.sku || 'N/A'}
+                                    </span>
                                     <span className="text-[10px] text-neutral-900 font-mono font-bold">
                                       {formatCurrency(currency === 'USD' ? product.priceUSD : product.priceLKR, currency)}
                                     </span>
@@ -1512,6 +1474,7 @@ export default function AdminDashboard({
                                   onClick={() => {
                                     setEditingProductId(product.id);
                                     setEditingName(product.name);
+                                    setEditingSku(product.sku || '');
                                     setEditingPriceUSD(product.priceUSD);
                                     setEditingPriceLKR(product.priceLKR);
                                     setEditingStock(product.stock !== undefined ? product.stock : (product.status === 'Out of Stock' ? 0 : product.status === 'Few Left' ? 3 : 15));
@@ -1872,206 +1835,7 @@ export default function AdminDashboard({
               </div>
             </div>
 
-            {/* GEMINI AI HUB & REQUEST LOGS DEBUGGER */}
-            <div className="p-6 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-300 dark:border-neutral-800 shadow-sm space-y-6" id="gemini-ai-hub-panel">
-              <div className="flex items-center justify-between border-b border-neutral-250 dark:border-neutral-800 pb-3">
-                <div className="flex items-center space-x-2.5">
-                  <div className="p-1.5 bg-neutral-900 dark:bg-amber-400 text-white dark:text-neutral-950 rounded">
-                    <Cpu className="w-5 h-5 animate-pulse" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase tracking-widest text-neutral-450 dark:text-neutral-500 font-extrabold font-mono block">System Diagnostics</span>
-                    <h3 className="text-sm font-serif font-black text-neutral-900 dark:text-white">Gemini AI Studio Hub & API Logs</h3>
-                  </div>
-                </div>
-                
-                {apiLogs.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearLogs}
-                    disabled={isClearingLogs}
-                    className="text-[9px] font-mono text-red-600 dark:text-red-400 hover:underline flex items-center gap-1 bg-red-500/5 px-2 py-1 rounded border border-red-500/10 cursor-pointer transition-all hover:bg-red-500/10"
-                  >
-                    {isClearingLogs ? 'Clearing...' : 'Clear Logs'}
-                  </button>
-                )}
-              </div>
 
-              {/* Grid Layout: 2 Sub-panels (AI Copywriter & Live API Diagnostics Terminal) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Panel A: Interactive Copywriter Assistant */}
-                <div className="space-y-4 font-sans bg-neutral-50 dark:bg-neutral-950/45 p-4 rounded-lg border border-neutral-200 dark:border-neutral-850">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <h4 className="text-[11px] uppercase tracking-wider font-extrabold text-neutral-800 dark:text-neutral-200 font-mono">
-                      AI Creative Assistant
-                    </h4>
-                  </div>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed font-semibold">
-                    Generate premium descriptions, tagline campaigns, or Instagram hashtags using the server proxy.
-                  </p>
-
-                  <form onSubmit={handleGenerateAi} className="space-y-3">
-                    <div>
-                      <label className="block text-[9px] uppercase font-bold tracking-wider text-neutral-450 dark:text-neutral-500 mb-1 font-mono">
-                        Generate For Product:
-                      </label>
-                      <select
-                        onChange={(e) => {
-                          const prodId = e.target.value;
-                          const prod = products.find(p => p.id === prodId);
-                          if (prod) {
-                            setAiPrompt(`Write a premium and highly compelling marketing description (under 50 words) for our streetwear release: "${prod.name}", category: "${prod.category}", of premium structure: "${prod.material || 'Heavyweight Cotton'}". Focus on craftsmanship, line geometry, and urban Colombo lifestyle.`);
-                          }
-                        }}
-                        className="w-full text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded px-2 py-1.5 focus:outline-none dark:text-neutral-200 text-neutral-800"
-                        defaultValue=""
-                      >
-                        <option value="" disabled className="text-neutral-500 bg-white dark:bg-neutral-800">-- Quick Select a Product --</option>
-                        {products.map(p => (
-                           <option key={p.id} value={p.id} className="text-neutral-900 bg-white dark:text-white dark:bg-neutral-800">{p.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[9px] uppercase font-bold tracking-wider text-neutral-450 dark:text-neutral-500 mb-1 font-mono">
-                        Custom Prompt:
-                      </label>
-                      <textarea
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        rows={3}
-                        required
-                        placeholder="E.g. Write a brief creative slogan for the brand REED Colombo streetwear..."
-                        className="w-full text-xs font-mono bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded p-2 focus:outline-none dark:text-neutral-200 resize-none font-medium leading-relaxed"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isGeneratingAi}
-                      className="w-full h-8.5 bg-black dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-100 font-mono text-[10px] uppercase font-extrabold tracking-widest rounded-none transition-all flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      {isGeneratingAi ? (
-                        <span className="flex items-center gap-1.5 font-sans normal-case">
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>AI is Thinking...</span>
-                        </span>
-                      ) : (
-                        <>
-                          <span>Generate AI Copy</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {aiResult && (
-                    <div className="mt-3 p-3 bg-white dark:bg-neutral-900 rounded border border-neutral-200 dark:border-neutral-800 space-y-1.5">
-                      <h5 className="text-[9px] font-mono text-neutral-450 dark:text-neutral-500 uppercase font-bold">
-                        AI Response Output:
-                      </h5>
-                      <p className="text-xs dark:text-neutral-100 leading-relaxed max-h-[160px] overflow-y-auto whitespace-pre-wrap font-sans font-medium select-text bg-neutral-50 dark:bg-neutral-950 p-2 border border-neutral-100 dark:border-neutral-850 rounded">
-                        {aiResult}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Panel B: Live API Performance Debugging Logs (Terminal style) */}
-                <div className="space-y-4 font-sans bg-neutral-95 dark:bg-neutral-950 p-4 rounded-lg border border-neutral-300 dark:border-neutral-850 flex flex-col h-full min-h-[350px]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Terminal className="w-4 h-4 text-emerald-500" />
-                      <h4 className="text-[11px] uppercase tracking-wider font-extrabold text-neutral-800 dark:text-neutral-300 font-mono">
-                        API Logs & Debugger
-                      </h4>
-                    </div>
-                    <span className="text-[9px] font-mono bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-0.5 rounded uppercase font-extrabold scale-95">
-                      Model: gemini-3.5-flash
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-relaxed font-semibold">
-                    Monitors latency execution times, payloads, and response status details for tuning user workflows.
-                  </p>
-
-                  <div className="flex-grow overflow-y-auto max-h-[320px] rounded-md border border-neutral-300 dark:border-neutral-800 bg-neutral-950 p-2 font-mono text-[10px] text-neutral-300 space-y-2">
-                    {apiLogs.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center py-10 text-neutral-500 space-y-1 select-none">
-                        <span>$ tail -f /log/gemini-api.log</span>
-                        <span className="animate-pulse">_ (No request logs captured yet)</span>
-                      </div>
-                    ) : (
-                      apiLogs.map((log) => {
-                        const isExpanded = expandedLogId === log.id;
-                        const isSuccess = log.status === 'Success';
-                        const logTime = log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A';
-                        return (
-                          <div 
-                            key={log.id} 
-                            className="border-b border-neutral-850 pb-2 last:border-none space-y-1.5 transition-colors duration-150 hover:bg-neutral-900/40 p-1 rounded-sm"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-neutral-500 bg-neutral-900 px-1 rounded text-[9px] select-none text-[8.5px]">
-                                  {logTime}
-                                </span>
-                                <span className={`px-1 py-0.2 rounded-[2px] font-sans text-[7.5px] font-extrabold uppercase ${
-                                  isSuccess 
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                }`}>
-                                  {log.status === 'Success' ? '✓ OK - 200' : '✗ ERROR - 500'}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                                className="text-[9px] text-neutral-400 hover:text-white flex items-center gap-0.5 select-none focus:outline-none cursor-pointer"
-                              >
-                                <span>{isExpanded ? 'Collapse' : 'Inspect'}</span>
-                                {isExpanded ? <ChevronUp className="w-2.5 h-2.5 text-neutral-400" /> : <ChevronDown className="w-2.5 h-2.5 text-neutral-400" />}
-                              </button>
-                            </div>
-
-                            <div className="text-[10px] text-neutral-300 font-mono truncate select-all">
-                              <span className="text-neutral-500 select-none">PROMPT: </span>
-                              {log.prompt}
-                            </div>
-
-                            <div className="text-[9px] text-neutral-400 flex items-center justify-between flex-wrap text-2xs select-none">
-                              <span>Latency: <strong className="text-neutral-300 font-bold">{log.latency ?? 0}ms</strong></span>
-                              <span>ID: <code className="text-neutral-500 text-[8px]">{log.id?.substring(0, 8)}</code></span>
-                            </div>
-
-                            {isExpanded && (
-                              <div className="mt-2 p-2 bg-neutral-900 border border-neutral-800 text-[10px] rounded space-y-2 select-text text-neutral-200 overflow-x-auto">
-                                <div>
-                                  <div className="text-neutral-500 text-[9px] uppercase font-bold tracking-wider mb-1">Full Request Prompt:</div>
-                                  <p className="whitespace-pre-wrap font-sans text-[11px] bg-neutral-950 p-2 rounded border border-neutral-850 text-neutral-300 font-semibold leading-relaxed">
-                                    {log.prompt}
-                                  </p>
-                                </div>
-                                <div>
-                                  <div className="text-neutral-500 text-[9px] uppercase font-bold tracking-wider mb-1">Response JSON Payload:</div>
-                                  <pre className="whitespace-pre-wrap font-mono text-[9.5px] bg-neutral-950 p-2 rounded border border-neutral-850 text-amber-100 max-h-[150px] overflow-y-auto leading-relaxed">
-                                    {log.response}
-                                  </pre>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </div>
 
             {/* RIGHT AREA: ADD NEW APPAREL PORTAL (4 cols) */}
             <div className="lg:col-span-4 bg-neutral-50 dark:bg-neutral-900/90 p-6 rounded-xl border border-neutral-300 dark:border-neutral-800 shadow-sm">
@@ -2089,6 +1853,44 @@ export default function AdminDashboard({
                     placeholder="E.g., Casual Crop-top"
                     className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-medium"
                   />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 font-mono">
+                      Product SKU (Unique)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {isSkuOverridden ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSkuOverridden(false);
+                          }}
+                          className="text-[9px] text-amber-600 dark:text-amber-400 font-bold hover:underline font-mono flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-900/60 transition-all cursor-pointer"
+                          title="Click to reset and snap back to the auto-generated logical SKU sequence"
+                        >
+                          <span>✏️ Reset to Suggestion</span>
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[8.5px] font-black uppercase font-mono tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded border border-emerald-150 dark:border-emerald-900/60 shadow-3xs">
+                          <span>✨ Auto-Generated</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={newSku}
+                    onChange={(e) => {
+                      setNewSku(e.target.value);
+                      setIsSkuOverridden(true);
+                    }}
+                    placeholder="E.g., RED-CN-BK-09"
+                    className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-mono font-semibold uppercase"
+                  />
+                  <p className="mt-1 text-[9px] text-neutral-500 dark:text-neutral-400 font-mono font-medium">Format: 3 Letters - 2 Letters - 2 Letters - 2 Digits (e.g., RED-CN-BK-09)</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -2114,35 +1916,86 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 mb-1.5 font-mono">Image URL</label>
-                  <input
-                    type="text"
-                    required
-                    value={newImgUrl}
-                    onChange={(e) => setNewImgUrl(e.target.value)}
-                    placeholder="Unsplash image URL"
-                    className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-mono text-[11px]"
-                  />
-                  <div className="mt-2 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-white/70 dark:bg-neutral-850 p-3 space-y-2">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-neutral-500 font-mono">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      <span>Upload or replace image</span>
-                    </div>
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Choose primary image file</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleSingleImageUpload(e.target.files?.[0], setNewImgUrl, 'Primary image')}
-                      />
-                    </label>
-                    <p className="text-[10px] leading-relaxed text-neutral-500">
-                      The selected file becomes the product image immediately, so you can swap visuals without pasting a URL.
-                    </p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-700 dark:text-neutral-300 font-mono">Product Image</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      className="text-[9px] font-mono text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white underline cursor-pointer"
+                    >
+                      {showUrlInput ? 'Use upload' : 'Use paste link'}
+                    </button>
                   </div>
+
+                  {showUrlInput ? (
+                    <input
+                      type="text"
+                      required
+                      value={newImgUrl}
+                      onChange={(e) => setNewImgUrl(e.target.value)}
+                      placeholder="Paste image web link (https://...)"
+                      className="w-full px-3 py-2.5 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white transition-all shadow-3xs font-mono text-[11px]"
+                    />
+                  ) : (
+                    <div>
+                      {newImgUrl ? (
+                        <div className="relative group border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-neutral-100 dark:bg-neutral-950">
+                          <img 
+                            src={newImgUrl} 
+                            alt="Product Preview" 
+                            className="w-full h-40 object-cover object-center"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                            <label className="px-3 py-1.5 bg-white text-black text-[10px] font-bold font-mono tracking-wider uppercase rounded cursor-pointer hover:bg-neutral-100 transition-colors">
+                              Change Photo
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleImageFileChange} 
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setNewImgUrl('')}
+                              className="px-3 py-1.5 bg-red-650 text-white text-[10px] font-bold font-mono tracking-wider uppercase rounded hover:bg-red-750 transition-colors cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          onClick={() => document.getElementById('new-product-file-input')?.click()}
+                          className={`border-2 border-dashed rounded-lg p-5 text-center transition-all flex flex-col items-center justify-center cursor-pointer min-h-[140px] ${
+                            isDragging 
+                              ? 'border-neutral-900 bg-neutral-100 dark:border-white dark:bg-neutral-900' 
+                              : 'border-neutral-300 bg-white hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-800/50 dark:hover:border-neutral-650'
+                          }`}
+                        >
+                          <input 
+                            id="new-product-file-input"
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageFileChange} 
+                          />
+                          <Upload className="w-6 h-6 text-neutral-400 dark:text-neutral-500 mb-1.5" />
+                          <div className="text-[11px] font-bold text-neutral-800 dark:text-neutral-200">
+                            Drag & drop apparel image
+                          </div>
+                          <div className="text-[9px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                            or click to browse local files
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -2153,17 +2006,6 @@ export default function AdminDashboard({
                     placeholder="https://image1.com, https://image2.com"
                     className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 rounded text-xs outline-none focus:ring-1 focus:ring-black dark:focus:ring-white h-12 resize-none font-mono text-[10px] shadow-3xs"
                   />
-                  <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-200 hover:border-black hover:text-black transition-colors">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload gallery images</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handleGalleryUpload(e.target.files, setNewImagesInput)}
-                    />
-                  </label>
                 </div>
 
                 <div>

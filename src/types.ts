@@ -10,6 +10,7 @@ export interface ProductReview {
 
 export interface Product {
   id: string;
+  sku: string;
   name: string;
   priceUSD: number;
   priceLKR: number;
