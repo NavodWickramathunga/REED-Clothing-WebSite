@@ -16,11 +16,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
+      # Skip install/build because this repo currently contains prebuilt `dist/`.
+      # Deploy the committed `dist/` artifacts directly. Remove this shortcut
+      # later when source files and build steps are added to the repository.
 
       - name: Deploy to Firebase Hosting
         env:
