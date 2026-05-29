@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base Level Styles for Premium Aesthetic */
+body {
+  font-family: "Inter", sans-serif;
+  font-weight: 300; /* Lightweight, highly readable body copy */
+  letter-spacing: 0.01em;
+  color: #1c1917; /* Slate dark tint */
+  background-color: #ffffff;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Global Light & Dark Theme Configuration Overrides */
+html.dark body {
+  background-color: #0c0c0b;
+  color: #f5f5f4;
+}
+
+/* Apply dark-mode rules to primary structural content elements */
+html.dark #latest-styles,
+html.dark #categories-showcase,
+html.dark #essence,
+html.dark #collection,
+html.dark #faq,
+html.dark footer {
+  background-color: #0c0c0b !important;
+  color: #f5f5f4 !important;
+}
+
+/* Heading color corrections in dark mode */
+html.dark h2,
+html.dark h3,
+html.dark .text-black,
+html.dark .text-neutral-900 {
+  color: #f5f5f4 !important;
+}
+
+/* Neutral subtle element coloring */
+html.dark .text-neutral-650,
+html.dark .text-neutral-600,
+html.dark .text-neutral-500 {
+  color: #a3a3a3 !important;
+}
+
+/* Background overlay adjustments on products, inputs or lists */
+html.dark .bg-white {
+  background-color: #141413 !important;
+}
+
+html.dark .bg-neutral-50,
+html.dark .bg-neutral-100 {
+  background-color: #1c1c1b !important;
+}
+
+/* Modals, Quickviews, Drawer Overlays background */
+html.dark .bg-white\/95 {
+  background-color: rgba(12, 12, 11, 0.95) !important;
+}
+
+html.dark .glass-panel {
+  background-color: rgba(20, 20, 19, 0.8) !important;
+  border-color: #272726 !important;
+}
+
+/* Specific product cards on Dark Theme */
+html.dark .group.relative.flex.flex-col.bg-white {
+  background-color: #141413 !important;
+  border-color: #272726 !important;
+}
+
+html.dark .group.relative.flex.flex-col.bg-white .bg-white {
+  background-color: #141413 !important;
+}
+
+html.dark .group.relative.flex.flex-col.bg-white:hover {
+  border-color: #444443 !important;
+}
+
+/* Borders and Dividers on dark theme */
+html.dark .border-neutral-100,
+html.dark .border-neutral-200 {
+  border-color: #272726 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1a1a19 !important;
+  border-color: #333332 !important;
+  color: #ffffff !important;
+}
+
+/* Cart overlay details and sidebars background */
+html.dark #cart-sidebar,
+html.dark #quickview-modal-container,
+html.dark #checkout-wizard,
+html.dark #order-status-timeline {
+  background-color: #121211 !important;
+  color: #ffffff !important;
+}
+
+/* Custom interactive buttons dark hover fixes */
+html.dark .hover\:bg-black:hover {
+  background-color: #ffffff !important;
+  color: #0c0c0b !important;
+}
+
+html.dark .hover\:text-black:hover {
+  color: #ffffff !important;
+}
+
+h1 {
+  font-family: "Space Grotesk", sans-serif !important;
+  text-transform: uppercase !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.03em !important;
+}
+
+h2 {
+  font-family: "Space Grotesk", sans-serif !important;
+  text-transform: uppercase !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@media print {
+  /* Hide all external layouts completely */
+  body * {
+    visibility: hidden;
+  }
+  /* Show only the invoice specification container */
+  #invoice-print-area, #invoice-print-area * {
+    visibility: visible;
+  }
+  #invoice-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* Professional REED Apparel Invoice Slip Header Header */
+  #invoice-print-area::before {
+    content: "R E E D   A P P A R E L\A 122, Galle Road, Colombo 03, Sri Lanka\A Phone: +94 (11) 234-5678  |  Email: orders@reedapparel.com\A \A OFFICIAL TRANSACTION INVOICE";
+    white-space: pre-line;
+    display: block;
+    text-align: center;
+    font-family: "Georgia", ui-serif, serif;
+    font-weight: 800;
+    font-size: 14.5px;
+    letter-spacing: 0.12em;
+    color: #000000 !important;
+    line-height: 1.6;
+    border-bottom: 4px double #000000;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  /* Force clean layout spacing on print format */
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  /* Ensure details have high contrast */
+  th, td {
+    border-color: #000000 !important;
+    color: #000000 !important;
+  }
+  tr.bg-neutral-900 {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

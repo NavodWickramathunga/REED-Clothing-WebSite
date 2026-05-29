@@ -1,0 +1,6 @@
+{
+  "name": "REED Apparel",
+  "description": "Premium apparel storefront for REED clothing brand with WhatsApp checkout and local catalog manager.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
