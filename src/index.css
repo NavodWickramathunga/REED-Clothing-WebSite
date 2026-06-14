@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Space+Grotesk:wght@700;800;900&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-150: #ededed;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-205: #dddddd;
+  --color-neutral-250: #d4d4d4;
+  --color-neutral-300: #d4d4d4;
+  --color-neutral-400: #a3a3a3;
+  --color-neutral-450: #888888;
+  --color-neutral-500: #737373;
+  --color-neutral-600: #525252;
+  --color-neutral-650: #4a4a4a;
+  --color-neutral-700: #404040;
+  --color-neutral-750: #333333;
+  --color-neutral-800: #262626;
+  --color-neutral-850: #1c1c1b;
+  --color-neutral-855: #181817;
+  --color-neutral-900: #171717;
+  --color-neutral-905: #121211;
+  --color-neutral-950: #0a0a0a;
+}
+
+/* Base Level Styles for Premium Aesthetic */
+body {
+  font-family: "Inter", sans-serif;
+  font-weight: 300; /* Lightweight, highly readable body copy */
+  letter-spacing: 0.01em;
+  color: #1c1917; /* Slate dark tint */
+  background-color: #ffffff;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+
+h1 {
+  font-family: "Space Grotesk", sans-serif !important;
+  text-transform: uppercase !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.03em !important;
+}
+
+h2 {
+  font-family: "Space Grotesk", sans-serif !important;
+  text-transform: uppercase !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@media print {
+  /* Hide all external layouts completely */
+  body * {
+    visibility: hidden;
+  }
+  /* Show only the invoice specification container */
+  #invoice-print-area, #invoice-print-area * {
+    visibility: visible;
+  }
+  #invoice-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* Professional REED Apparel Invoice Slip Header Header */
+  #invoice-print-area::before {
+    content: "R E E D   A P P A R E L\A 122, Galle Road, Colombo 03, Sri Lanka\A Phone: +94 71 076 1266  |  Email: orders@reedapparel.com\A \A OFFICIAL TRANSACTION INVOICE";
+    white-space: pre-line;
+    display: block;
+    text-align: center;
+    font-family: "Georgia", ui-serif, serif;
+    font-weight: 800;
+    font-size: 14.5px;
+    letter-spacing: 0.12em;
+    color: #000000 !important;
+    line-height: 1.6;
+    border-bottom: 4px double #000000;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  /* Force clean layout spacing on print format */
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  /* Ensure details have high contrast */
+  th, td {
+    border-color: #000000 !important;
+    color: #000000 !important;
+  }
+  tr.bg-neutral-900 {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

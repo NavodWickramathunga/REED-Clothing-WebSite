@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reuseable Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+             (request.auth.token.email.lower() == "admin@reed.lk" ||
+              request.auth.token.email.lower() == "temp-admin@reed.lk" ||
+              request.auth.token.email.lower() == "navodwickramathunga@gmail.com");
+    }
+
+    // 3. Products Collection Settings
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(productId);
+    }
+
+    // 4. WhatsApp System Config Settings
+    match /whatsapp_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(docId);
+    }
+
+    // 5. Customer Orders Collection Settings
+    match /orders/{orderId} {
+      allow create: if isValidId(orderId);
+      allow get: if isAdmin() || (resource != null && resource.id == orderId);
+      allow list, update, delete: if isAdmin();
+    }
+
+    // 6. Out of stock interest notification collection
+    match /interested/{interestId} {
+      allow create: if isValidId(interestId);
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 7. Gemini API security logs
+    match /gemini_api_logs/{logId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

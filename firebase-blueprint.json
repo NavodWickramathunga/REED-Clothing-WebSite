@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "An apparel product listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "priceUSD": { "type": "number" },
+        "priceLKR": { "type": "number" },
+        "description": { "type": "string" },
+        "colors": { "type": "array" },
+        "sizes": { "type": "array" },
+        "status": { "type": "string" },
+        "category": { "type": "string" },
+        "material": { "type": "string" },
+        "features": { "type": "array" }
+      },
+      "required": ["id", "name", "priceUSD", "priceLKR", "colors", "sizes", "status", "category"]
+    },
+    "OrderDetails": {
+      "title": "OrderDetails",
+      "description": "A customer order placement details",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "postalCode": { "type": "string" },
+        "notes": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentReference": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "fulfillmentStatus": { "type": "string" },
+        "items": { "type": "array" },
+        "totalUSD": { "type": "number" },
+        "totalLKR": { "type": "number" },
+        "orderId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["customerName", "phone", "email", "address", "city", "postalCode", "paymentMethod", "paymentStatus", "items", "totalUSD", "totalLKR", "orderId", "timestamp"]
+    },
+    "WhatsAppConfig": {
+      "title": "WhatsAppConfig",
+      "description": "The system whatsapp forwarder phone number configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "string" }
+      },
+      "required": ["number"]
+    },
+    "InterestedRequest": {
+      "title": "InterestedRequest",
+      "description": "User email interest for out of stock sizes on products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "size": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["email", "productId", "productName", "size", "timestamp"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Store list of premium available available crewneck listings"
+    },
+    "orders": {
+      "schema": "OrderDetails",
+      "description": "All customer checkouts and payments tracker"
+    },
+    "whatsapp_config": {
+      "schema": "WhatsAppConfig",
+      "description": "Active administrator WhatsApp forwarding settings module"
+    },
+    "interested": {
+      "schema": "InterestedRequest",
+      "description": "Emails interested in out-of-stock sizes and products"
+    }
+  }
+}
