@@ -17,7 +17,26 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import OrderTracker from './components/OrderTracker';
 import SocialFooter from './components/SocialFooter';
 import ReactHelmet from './components/ReactHelmet';
+import ConsentBanner from './components/ConsentBanner';
 import { formatCurrency, compressImage, uploadBase64ToStorage } from './utils';
+import {
+  trackViewItemList,
+  trackSelectItem,
+  trackViewItem,
+  trackAddToCart,
+  trackRemoveFromCart,
+  trackViewCart,
+  trackBeginCheckout,
+  trackAddShippingInfo,
+  trackAddPaymentInfo,
+  trackPurchase,
+  trackAddToWishlist,
+  trackAddReview,
+  trackWhatsAppClick,
+  pushPageView,
+  pushCustomEvent,
+  calculateCartValue,
+} from './analytics';
 import { MessageSquare, BadgeCheck, HelpCircle, ArrowRight, Layers, PhoneCall, Info, Sparkles, Filter, ChevronDown, Check, Home, ShoppingBag, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -54,11 +73,12 @@ export default function App() {
         localStorage.setItem('reed_wishlist', JSON.stringify(next));
       } catch (e) {}
       
-      // Dynamic tracking event for wishlist additions
+      // GA4 Enhanced E-commerce: add_to_wishlist
       if (!prev.includes(productId)) {
-        triggerGtmEvent('add_to_wishlist', {
-          item_id: productId
-        });
+        const product = products.find(p => p.id === productId);
+        if (product) {
+          trackAddToWishlist(product, currency);
+        }
       }
       return next;
     });
@@ -83,20 +103,11 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
 
-  // --- Real-time GTM Event Telemetry Log Tracker ---
+  // --- Real-time GTM Event Telemetry Log Tracker (for Admin Dashboard visibility) ---
   const [gtmEvents, setGtmEvents] = useState<{ event: string; timestamp: string; data: any }[]>([]);
 
-  const triggerGtmEvent = (eventName: string, data: any) => {
-    try {
-      if ((window as any).dataLayer) {
-        (window as any).dataLayer.push({
-          event: eventName,
-          ...data
-        });
-      }
-    } catch (e) {
-      console.error("GTM telemetry push exception", e);
-    }
+  /** Legacy telemetry log — only used for Admin Dashboard event feed. Actual tracking is done via analytics.ts */
+  const logGtmEvent = (eventName: string, data: any) => {
     const newEv = {
       event: eventName,
       timestamp: new Date().toLocaleTimeString(),
@@ -231,34 +242,57 @@ export default function App() {
     }
   }, [activeProduct, isCartOpen, isCheckoutOpen, isAdminOpen, isOrderTrackerOpen]);
 
-  // GTM Dynamic Lifecycle observers
+  // --- GA4 Enhanced E-commerce Lifecycle Observers ---
+
+  // SPA Virtual Pageview tracking
+  useEffect(() => {
+    const path = window.location.pathname;
+    let pageTitle = 'REED Clothing';
+    let pageType = 'home';
+
+    if (activeProduct) {
+      pageTitle = `Shop ${activeProduct.name} | REED`;
+      pageType = 'product_detail';
+    } else if (isCartOpen) {
+      pageTitle = 'Shopping Bag | REED';
+      pageType = 'cart';
+    } else if (isCheckoutOpen) {
+      pageTitle = 'Checkout | REED';
+      pageType = 'checkout';
+    } else if (isAdminOpen) {
+      pageTitle = 'Admin Dashboard | REED';
+      pageType = 'admin';
+    } else if (isOrderTrackerOpen) {
+      pageTitle = 'Order Tracker | REED';
+      pageType = 'order_tracking';
+    }
+
+    pushPageView(path, pageTitle, pageType);
+  }, [activeProduct, isCartOpen, isCheckoutOpen, isAdminOpen, isOrderTrackerOpen]);
+
+  // view_item: fires when product detail modal opens
   useEffect(() => {
     if (activeProduct) {
-      triggerGtmEvent('view_item', {
-        item_id: activeProduct.id,
-        item_name: activeProduct.name,
-        price_lkr: activeProduct.priceLKR,
-        price_usd: activeProduct.priceUSD,
-        currency,
-        category: activeProduct.category
-      });
+      trackViewItem(activeProduct, currency);
+      logGtmEvent('view_item', { item_id: activeProduct.id, item_name: activeProduct.name });
     }
   }, [activeProduct]);
 
+  // begin_checkout: fires when checkout wizard opens
   useEffect(() => {
     if (isCheckoutOpen) {
-      const activeSubtotal = cartItems.reduce((acc, item) => {
-        const price = currency === 'USD' ? item.product.priceUSD : item.product.priceLKR;
-        return acc + price * item.quantity;
-      }, 0);
-      triggerGtmEvent('begin_checkout', {
-        subtotal: activeSubtotal,
-        currency,
-        items_count: cartItems.length,
-        items: cartItems.map(i => ({ id: i.product.id, name: i.product.name, qty: i.quantity, sz: i.selectedSize }))
-      });
+      trackBeginCheckout(cartItems, currency);
+      logGtmEvent('begin_checkout', { items_count: cartItems.length, value: calculateCartValue(cartItems, currency) });
     }
   }, [isCheckoutOpen]);
+
+  // view_cart: fires when cart sidebar opens
+  useEffect(() => {
+    if (isCartOpen && cartItems.length > 0) {
+      trackViewCart(cartItems, currency);
+      logGtmEvent('view_cart', { items_count: cartItems.length, value: calculateCartValue(cartItems, currency) });
+    }
+  }, [isCartOpen]);
 
   // Validate connection to Firestore
   useEffect(() => {
@@ -614,12 +648,9 @@ export default function App() {
     // Write changes using existing state/firebase sync triggers
     await updatePersistentProducts(updated);
 
-    // Dynamic telemetry event
-    triggerGtmEvent('add_review', {
-      item_id: productId,
-      rating: review.rating,
-      author: review.author
-    });
+    // GA4 Enhanced E-commerce: add_review (custom event)
+    trackAddReview(productId, review.rating);
+    logGtmEvent('add_review', { item_id: productId, rating: review.rating });
   };
 
   const updatePersistentWhatsApp = async (phoneNo: string) => {
@@ -650,17 +681,10 @@ export default function App() {
       handleFirestoreError(error, OperationType.WRITE, `orders/${newOrder.orderId}`);
     }
 
-    // Capture purchase event in GTM tracking
-    triggerGtmEvent('purchase', {
-      order_id: newOrder.orderId,
-      value_lkr: newOrder.totalLKR,
-      value_usd: newOrder.totalUSD,
-      currency,
-      payment_method: newOrder.paymentMethod,
-      reference: newOrder.paymentReference,
-      items_count: newOrder.items.length,
-      items: newOrder.items.map(i => ({ id: i.productId, name: i.productName, price: i.price, qty: i.quantity, sz: i.size }))
-    });
+    // GA4 Enhanced E-commerce: purchase
+    const totalValue = currency === 'USD' ? newOrder.totalUSD : newOrder.totalLKR;
+    trackPurchase(newOrder.orderId, cartItems, currency, totalValue, newOrder.paymentMethod);
+    logGtmEvent('purchase', { order_id: newOrder.orderId, value: totalValue, currency });
 
     // Clear cart upon successful payment & order processing
     updatePersistentCart([]);
@@ -717,17 +741,9 @@ export default function App() {
       });
     }
 
-    // Trigger dynamic tag tracking for cart item additions
-    triggerGtmEvent('add_to_cart', {
-      item_id: product.id,
-      item_name: product.name,
-      price_lkr: product.priceLKR,
-      price_usd: product.priceUSD,
-      currency,
-      quantity,
-      size,
-      color: activeColor
-    });
+    // GA4 Enhanced E-commerce: add_to_cart
+    trackAddToCart(product, currency, quantity, size, activeColor);
+    logGtmEvent('add_to_cart', { item_id: product.id, item_name: product.name, size, color: activeColor });
 
     updatePersistentCart(updatedCart);
     setIsCartOpen(true); // Open sidebar automatically to show added items (Frictionless UX)
@@ -748,6 +764,12 @@ export default function App() {
   };
 
   const handleRemoveCartItem = (itemId: string) => {
+    // GA4 Enhanced E-commerce: remove_from_cart
+    const removedItem = cartItems.find((item) => item.id === itemId);
+    if (removedItem) {
+      trackRemoveFromCart(removedItem, currency);
+      logGtmEvent('remove_from_cart', { item_id: removedItem.product.id });
+    }
     const updatedCart = cartItems.filter((item) => item.id !== itemId);
     updatePersistentCart(updatedCart);
   };
@@ -817,6 +839,26 @@ export default function App() {
     if (sortBy === 'PriceHighLow') return priceB - priceA;
     return 0; // default order
   });
+
+  // GA4: view_item_list — fires when the visible product grid changes (debounced)
+  const viewItemListTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (sortedProducts.length > 0 && !isLoading) {
+      if (viewItemListTimeoutRef.current) clearTimeout(viewItemListTimeoutRef.current);
+      viewItemListTimeoutRef.current = setTimeout(() => {
+        const listName = selectedCategory !== 'All'
+          ? `${selectedCategory} Collection`
+          : selectedGender !== 'all'
+          ? `${selectedGender === 'men' ? "Men's" : selectedGender === 'women' ? "Women's" : "All"} Catalog`
+          : 'Full Catalog';
+        trackViewItemList(sortedProducts, currency, listName);
+        logGtmEvent('view_item_list', { list_name: listName, items_count: sortedProducts.length });
+      }, 800);
+    }
+    return () => {
+      if (viewItemListTimeoutRef.current) clearTimeout(viewItemListTimeoutRef.current);
+    };
+  }, [sortedProducts.map(p => p.id).join(','), selectedCategory, selectedGender, isLoading]);
 
   // --- Dynamic SEO Head Information (ReactHelmet) ---
   let helmetTitle = "Structured Luxury Craftsmanship";
@@ -1325,7 +1367,11 @@ export default function App() {
                       <ProductCard
                         product={p}
                         currency={currency}
-                        onQuickView={(prod) => setActiveProduct(prod)}
+                        onQuickView={(prod) => {
+                          trackSelectItem(prod, currency, idx);
+                          logGtmEvent('select_item', { item_id: prod.id });
+                          setActiveProduct(prod);
+                        }}
                         onAddToCart={(prod, sz) => handleAddToCart(prod, sz, 1)}
                         isWishlisted={wishlist.includes(p.id)}
                         onToggleWishlist={toggleWishlist}
@@ -1444,6 +1490,18 @@ export default function App() {
           currency={currency}
           whatsappNumber={whatsappNumber}
           onOrderCompleted={handleOrderCompleted}
+          onTrackShippingInfo={() => {
+            trackAddShippingInfo(cartItems, currency);
+            logGtmEvent('add_shipping_info', { items_count: cartItems.length });
+          }}
+          onTrackPaymentInfo={(paymentMethod: string) => {
+            trackAddPaymentInfo(cartItems, currency, paymentMethod);
+            logGtmEvent('add_payment_info', { payment_method: paymentMethod });
+          }}
+          onTrackWhatsAppClick={(orderId: string, totalValue: number) => {
+            trackWhatsAppClick(orderId, totalValue, currency);
+            logGtmEvent('whatsapp_click', { order_id: orderId });
+          }}
         />
       )}
 
@@ -1507,6 +1565,9 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* Privacy & Cookie Consent Banner */}
+      <ConsentBanner />
     </div>
   );
 }

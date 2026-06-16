@@ -10,6 +10,9 @@ interface CheckoutWizardProps {
   currency: 'USD' | 'LKR';
   whatsappNumber: string;
   onOrderCompleted: (order: OrderDetails) => void;
+  onTrackShippingInfo?: () => void;
+  onTrackPaymentInfo?: (paymentMethod: string) => void;
+  onTrackWhatsAppClick?: (orderId: string, totalValue: number) => void;
 }
 
 export default function CheckoutWizard({
@@ -19,6 +22,9 @@ export default function CheckoutWizard({
   currency,
   whatsappNumber,
   onOrderCompleted,
+  onTrackShippingInfo,
+  onTrackPaymentInfo,
+  onTrackWhatsAppClick,
 }: CheckoutWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -81,6 +87,8 @@ export default function CheckoutWizard({
       alert('Please fill in all required delivery information.');
       return;
     }
+    // GA4: add_shipping_info
+    onTrackShippingInfo?.();
     setStep(2);
   };
 
@@ -118,6 +126,8 @@ export default function CheckoutWizard({
 
     setCompletedOrder(newOrder);
     onOrderCompleted(newOrder);
+    // GA4: add_payment_info
+    onTrackPaymentInfo?.('BankTransfer');
     sendOrderNotification(newOrder);
     setStep(3);
   };
@@ -529,6 +539,12 @@ export default function CheckoutWizard({
                   href={formattedWhatsAppUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    if (completedOrder) {
+                      const totalValue = currency === 'USD' ? completedOrder.totalUSD : completedOrder.totalLKR;
+                      onTrackWhatsAppClick?.(completedOrder.orderId, totalValue);
+                    }
+                  }}
                   className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-sm text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center space-x-2 cursor-pointer"
                   id="checkout-whatsapp"
                 >
