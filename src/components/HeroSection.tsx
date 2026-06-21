@@ -157,17 +157,17 @@ export default function HeroSection({ onExploreClick, onSelectCategory, onSelect
             mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >
-          <span className="text-[10px] md:text-xs font-mono tracking-[0.35em] text-neutral-400 font-extrabold block uppercase">
+          <span className="text-[9px] md:text-[10px] font-mono tracking-[0.4em] text-neutral-500 font-semibold block uppercase">
             EXPLORE OUR COLLECTION
           </span>
           
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-display font-black tracking-tight text-white uppercase leading-[0.85] select-none">
-            BE BETTER <br />
-            EVERYDAY
+            CRAFTED TO <br />
+            ENDURE
           </h1>
 
-          <p className="text-[11px] sm:text-xs lg:text-sm text-neutral-450 font-light tracking-widest leading-relaxed uppercase max-w-xl font-sans pt-1">
-            Re-engineered premium heavyweight sportswear and contour active apparel. Built for endurance.
+          <p className="text-[10px] sm:text-[11px] lg:text-xs text-neutral-500 font-light tracking-[0.25em] leading-loose uppercase max-w-lg font-sans pt-3">
+            Heavyweight streetwear and contour active apparel engineered for flawless form and absolute permanence.
           </p>
         </div>
 
