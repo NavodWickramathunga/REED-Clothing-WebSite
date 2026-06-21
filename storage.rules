@@ -1,17 +1,28 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Product images — readable by anyone, writable only by admin
+
+    // Reusable admin identity check (mirrors Firestore isAdmin)
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.token.email_verified == true &&
+             (request.auth.token.email.lower() == 'admin@reed.lk' ||
+              request.auth.token.email.lower() == 'temp-admin@reed.lk' ||
+              request.auth.token.email.lower() == 'navodwickramathunga@gmail.com');
+    }
+
+    // Product images — readable by anyone, writable only by verified admin
+    // Restricted to image MIME types and 5MB max file size
     match /product-images/{imageFile} {
       allow read: if true;
-      allow write: if request.auth != null &&
-                   request.auth.token.email.lower() == 'admin@reed.lk';
+      allow write: if isAdmin()
+                   && request.resource.contentType.matches('image/.*')
+                   && request.resource.size < 5 * 1024 * 1024;
     }
 
     // Fallback: deny everything else
     match /{allPaths=**} {
-      allow read: if true;
-      allow write: if false;
+      allow read, write: if false;
     }
   }
 }

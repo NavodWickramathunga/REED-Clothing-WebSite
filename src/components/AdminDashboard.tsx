@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, StockStatus, OrderDetails } from '../types';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../firebase';
 const ADMIN_EMAIL = 'admin@reed.lk';
 
@@ -30,7 +30,7 @@ import {
   Image as ImageIcon,
   Upload
 } from 'lucide-react';
-import { formatCurrency, isLightColor, uploadImageToStorage } from '../utils';
+import { formatCurrency, isLightColor, uploadImageToStorage, compressImage } from '../utils';
 import DailyOrdersChart from './DailyOrdersChart';
 
 interface AdminDashboardProps {
@@ -65,43 +65,97 @@ export default function AdminDashboard({
   const [firebaseUser, setFirebaseUser] = useState<User | null>(auth.currentUser);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
+  // Security: Login attempt tracking for progressive lockout
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+
+  // Security: Session inactivity timeout (30 minutes)
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+  const lastActivityRef = React.useRef<number>(Date.now());
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (user && user.email === ADMIN_EMAIL) {
         setIsAuthenticated(true);
+        lastActivityRef.current = Date.now();
       }
     });
     return unsub;
   }, []);
 
+  // Session inactivity auto-logout
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const resetActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    // Track user activity
+    window.addEventListener('mousemove', resetActivity);
+    window.addEventListener('keydown', resetActivity);
+    window.addEventListener('click', resetActivity);
+
+    // Check inactivity every 60 seconds
+    const inactivityCheck = setInterval(() => {
+      if (Date.now() - lastActivityRef.current > SESSION_TIMEOUT_MS) {
+        console.warn('[Security] Admin session timed out due to inactivity.');
+        signOut(auth).then(() => {
+          setIsAuthenticated(false);
+          setAuthError('Session timed out due to inactivity. Please sign in again.');
+        }).catch(console.error);
+      }
+    }, 60_000);
+
+    return () => {
+      window.removeEventListener('mousemove', resetActivity);
+      window.removeEventListener('keydown', resetActivity);
+      window.removeEventListener('click', resetActivity);
+      clearInterval(inactivityCheck);
+    };
+  }, [isAuthenticated]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check lockout
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const remainingSec = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      setAuthError(`Too many failed attempts. Please wait ${remainingSec} seconds.`);
+      return;
+    }
+
     setIsAuthLoading(true);
     setAuthError('');
     try {
-      // Try signing in with email/password via Firebase Auth
+      // Secure sign-in only — no auto-registration
       await signInWithEmailAndPassword(auth, ADMIN_EMAIL, password);
       setIsAuthenticated(true);
+      setLoginAttempts(0);
+      setLockoutUntil(null);
+      lastActivityRef.current = Date.now();
     } catch (signInError: any) {
-      // If user doesn't exist yet, create the account (first-time setup)
-      if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/invalid-credential') {
-        try {
-          await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, password);
-          setIsAuthenticated(true);
-        } catch (createError: any) {
-          if (createError.code === 'auth/email-already-in-use') {
-            setAuthError('Incorrect password. Please try again.');
-          } else if (createError.code === 'auth/weak-password') {
-            setAuthError('Password must be at least 6 characters.');
-          } else {
-            setAuthError(createError.message || 'Authentication failed.');
-          }
-        }
-      } else if (signInError.code === 'auth/wrong-password') {
-        setAuthError('Incorrect password. Please try again.');
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      // Progressive lockout after 3 failed attempts
+      if (newAttempts >= 3) {
+        const lockoutDuration = 30_000; // 30 seconds
+        setLockoutUntil(Date.now() + lockoutDuration);
+        setAuthError(`Too many failed attempts. Account locked for 30 seconds.`);
+        // Auto-clear lockout after duration
+        setTimeout(() => {
+          setLockoutUntil(null);
+          setLoginAttempts(0);
+          setAuthError('');
+        }, lockoutDuration);
+      } else if (signInError.code === 'auth/wrong-password' || signInError.code === 'auth/invalid-credential') {
+        setAuthError(`Incorrect password. ${3 - newAttempts} attempt(s) remaining before lockout.`);
+      } else if (signInError.code === 'auth/user-not-found') {
+        setAuthError('Admin account not found. Please contact the system administrator.');
       } else if (signInError.code === 'auth/too-many-requests') {
-        setAuthError('Too many failed attempts. Please wait a moment and try again.');
+        setAuthError('Too many requests. Firebase has temporarily locked this account. Please wait.');
       } else {
         setAuthError(signInError.message || 'Authentication failed.');
       }

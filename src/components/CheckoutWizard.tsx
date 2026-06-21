@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CartItem, OrderDetails } from '../types';
 import { formatCurrency, generateWhatsAppMessage } from '../utils';
+import { sanitizeStrictText, sanitizeText, sanitizeEmail, sanitizePhone, sanitizePostalCode, isValidEmail, isValidPhone } from '../sanitize';
 import { X, ArrowRight, ArrowLeft, CheckCircle2, Truck, MessageSquare, Copy } from 'lucide-react';
 
 interface CheckoutWizardProps {
@@ -80,11 +81,21 @@ export default function CheckoutWizard({
   const totalUSD = currency === 'USD' ? subtotal : subtotal / 300;
   const totalLKR = currency === 'LKR' ? subtotal : subtotal * 300;
 
-  // Handle step 1: Delivery Details
+  // Handle step 1: Delivery Details — with input validation
   const handleStep1Next = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName || !phone || !email || !address || !city) {
       alert('Please fill in all required delivery information.');
+      return;
+    }
+    // Validate email format
+    if (!isValidEmail(email)) {
+      alert('Please enter a valid email address (e.g., name@example.com).');
+      return;
+    }
+    // Validate phone format
+    if (!isValidPhone(phone)) {
+      alert('Please enter a valid phone number (e.g., +94 77 123 4567).');
       return;
     }
     // GA4: add_shipping_info
@@ -92,22 +103,37 @@ export default function CheckoutWizard({
     setStep(2);
   };
 
-  // Handle step 2: Confirm Order
+  // Handle step 2: Confirm Order — with sanitized inputs
   const handleStep2Next = (e: React.FormEvent) => {
     e.preventDefault();
     
     const fakeRef = 'COD-' + Math.floor(100000 + Math.random() * 900000);
     const orderId = 'ORD-' + Math.floor(10000 + Math.random() * 90000);
+
+    // Sanitize all customer inputs before persisting
+    const safeCustomerName = sanitizeStrictText(customerName, 128);
+    const safePhone = sanitizePhone(phone);
+    const safeEmail = sanitizeEmail(email);
+    const safeAddress = sanitizeStrictText(address, 256);
+    const safeCity = sanitizeStrictText(city, 64);
+    const safePostalCode = sanitizePostalCode(postalCode);
+    const safeNotes = sanitizeText(orderNotes, 500);
+
+    // Final validation after sanitization
+    if (!safeCustomerName || !safePhone || !safeEmail || !safeAddress || !safeCity) {
+      alert('Some fields contain invalid characters. Please review your delivery details.');
+      return;
+    }
     
     const newOrder: OrderDetails = {
       orderId,
-      customerName,
-      phone,
-      email,
-      address,
-      city,
-      postalCode,
-      notes: orderNotes,
+      customerName: safeCustomerName,
+      phone: safePhone,
+      email: safeEmail,
+      address: safeAddress,
+      city: safeCity,
+      postalCode: safePostalCode,
+      notes: safeNotes,
       paymentMethod: 'BankTransfer',
       paymentReference: fakeRef,
       paymentStatus: 'Pending',

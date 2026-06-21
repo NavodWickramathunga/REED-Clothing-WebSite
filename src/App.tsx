@@ -40,7 +40,69 @@ import {
 import { MessageSquare, BadgeCheck, HelpCircle, ArrowRight, Layers, PhoneCall, Info, Sparkles, Filter, ChevronDown, Check, Home, ShoppingBag, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+// ---------------------------------------------------------------------------
+// Security: PII Protection Utilities for localStorage
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip PII from an order before persisting to localStorage.
+ * Only keeps: orderId, items, totals, timestamp, paymentStatus, fulfillmentStatus.
+ * Customer name, phone, email, address are NEVER stored locally.
+ */
+function stripOrderPII(order: OrderDetails): Partial<OrderDetails> {
+  return {
+    orderId: order.orderId,
+    items: order.items,
+    totalUSD: order.totalUSD,
+    totalLKR: order.totalLKR,
+    timestamp: order.timestamp,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    fulfillmentStatus: order.fulfillmentStatus,
+    // PII fields intentionally omitted:
+    // customerName, phone, email, address, city, postalCode, notes, paymentReference
+  };
+}
+
+/**
+ * Clean up stale localStorage order data older than the specified number of days.
+ */
+function cleanupStaleLocalOrders(maxAgeDays: number = 7): void {
+  try {
+    const saved = localStorage.getItem('reed_orders');
+    if (!saved) return;
+
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem('reed_orders');
+      return;
+    }
+
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    const fresh = parsed.filter((o: any) => {
+      if (!o || !o.timestamp) return false;
+      try {
+        return new Date(o.timestamp).getTime() > cutoff;
+      } catch {
+        return false;
+      }
+    });
+
+    if (fresh.length !== parsed.length) {
+      localStorage.setItem('reed_orders', JSON.stringify(fresh));
+      console.log(`[Security] Cleaned up ${parsed.length - fresh.length} stale order(s) from localStorage.`);
+    }
+  } catch (e) {
+    console.error('[Security] Failed to clean up stale localStorage orders:', e);
+  }
+}
+
 export default function App() {
+
+  // Security: Clean up stale localStorage data on app startup
+  React.useEffect(() => {
+    cleanupStaleLocalOrders(7);
+  }, []);
 
   // --- Persistent States using Firebase Firestore ---
   const [products, setProducts] = useState<Product[]>([]);
@@ -673,7 +735,8 @@ export default function App() {
   const handleOrderCompleted = async (newOrder: OrderDetails) => {
     const updatedOrders = [newOrder, ...orders];
     setOrders(updatedOrders);
-    localStorage.setItem('reed_orders', JSON.stringify(updatedOrders));
+    // Security: Strip PII before localStorage persistence
+    localStorage.setItem('reed_orders', JSON.stringify(updatedOrders.map(stripOrderPII)));
     
     try {
       await setDoc(doc(db, 'orders', newOrder.orderId), newOrder);
@@ -695,7 +758,8 @@ export default function App() {
     const previousIds = orders.map(o => o.orderId);
 
     setOrders(updatedOrd);
-    localStorage.setItem('reed_orders', JSON.stringify(updatedOrd));
+    // Security: Strip PII before localStorage persistence
+    localStorage.setItem('reed_orders', JSON.stringify(updatedOrd.map(stripOrderPII)));
 
     // Always attempt Firestore write
     isWritingOrders.current = true;
